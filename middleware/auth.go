@@ -14,8 +14,8 @@ const AuthKey = "123456"
 
 type Claims struct {
 	Application string `json:"application"`
-	UserType    string `json:"user_type"`
 	UserId      int    `json:"user_id"`
+	UserType    int    `json:"user_type"`
 	GroupId     int    `json:"group_id"`
 	jwt.StandardClaims
 }
@@ -60,7 +60,7 @@ func Auth() gin.HandlerFunc {
 		} else {
 			if claims, ok := token.Claims.(*Claims); ok && token.Valid {
 				c.Request.Header.Set("user_id", strconv.Itoa(claims.UserId))
-				c.Request.Header.Set("user_type", claims.UserType)
+				c.Request.Header.Set("user_type", strconv.Itoa(claims.UserType))
 				c.Request.Header.Set("group_id", strconv.Itoa(claims.GroupId))
 			} else {
 				c.JSON(401, gin.H{
