@@ -5,6 +5,7 @@ import (
 	"estate/models/v1"
 	"estate/pkg/redis"
 	"fmt"
+	"regexp"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -153,6 +154,27 @@ func User_ResetPassword(c *gin.Context) {
 		return
 	}
 	c.JSON(201, gin.H{
+		"code": 0,
+		"msg":  "success",
+	})
+	return
+}
+
+// 用户-注销
+func User_Logout(c *gin.Context) {
+	authHeader := c.Request.Header.Get("Authorization")
+	r, _ := regexp.Compile("^Bearer (.+)$")
+	match := r.FindStringSubmatch(authHeader)
+	tokenString := match[1]
+	_, err := redis.Do("DEL", tokenString)
+	if err != nil {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "注销失败",
+		})
+		return
+	}
+	c.JSON(200, gin.H{
 		"code": 0,
 		"msg":  "success",
 	})
