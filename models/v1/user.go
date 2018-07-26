@@ -21,9 +21,10 @@ type UserLoginReturn struct {
 // 用户-登录
 func (this *UserModel) User_Login(email, password string) (u *UserLoginReturn, errMsg string) {
 	// 根据不同分组验证其相关邮箱密码有效性
-	sql := `SELECT id, group_id, user_type, company_id
-			FROM p_user
-			WHERE email=? AND password=?`
+	sql := `SELECT u.id, u.group_id, u.user_type, c.expiry_date
+			FROM p_user u
+			LEFT JOIN p_company c ON c.id=u.company_id
+			WHERE u.email=? AND u.password=?`
 	row, err := db.Db.Query(sql, email, password)
 	if err != nil {
 		return u, "获取用户信息失败"
@@ -33,13 +34,6 @@ func (this *UserModel) User_Login(email, password string) (u *UserLoginReturn, e
 	}
 	groupId, _ := strconv.Atoi(string(row[0]["group_id"]))
 	if groupId == 3 {
-		companyId, _ := strconv.Atoi(string(row[0]["company_id"]))
-
-		sql := `SELECT expiry_date FROM japan_company WHERE id=?`
-		row, err := db.Db.Query(sql, companyId)
-		if err != nil {
-			return u, "获取帐号过期时间失败"
-		}
 		expiryDate := string(row[0]["expiry_date"])
 		if time.Now().Format("2006-01-02 15:04:05") > expiryDate {
 			return u, "帐号已过期"
@@ -185,14 +179,15 @@ func (this *UserModel) GetUserInfo(userInfo *GetUserInfoParameter) (u *GetUserIn
 	// 判断是根据用户id或者邮箱查询用户信息
 	var where string
 	if userInfo.UserId > 0 {
-		where = `id=` + strconv.Itoa(userInfo.UserId)
+		where = `u.id=` + strconv.Itoa(userInfo.UserId)
 	} else {
-		where = `email='` + userInfo.Email + `'`
+		where = `u.email='` + userInfo.Email + `'`
 	}
 
 	// 查询用户信息
-	sql := `SELECT id, group_id, user_type, email, password, name, company_id
-			FROM p_user 
+	sql := `SELECT u.id, u.user_type, u.email, u.password, u.name, u.company_id, c.group_id
+			FROM p_user u
+			LEFT JOIN p_company c ON c.id=u.company_id
 			WHERE ` + where
 	row, err := db.Db.Query(sql)
 	if err != nil {
@@ -210,18 +205,12 @@ func (this *UserModel) GetUserInfo(userInfo *GetUserInfoParameter) (u *GetUserIn
 	)
 	switch groupId {
 	case 1: // 本部
-		sql := `SELECT is_notified FROM base_info`
-		row, err := db.Db.Query(sql)
-		if err != nil {
-			return u, "获取通知状态失败"
+		baseInfo, errMsg := this.GetBaseInfo()
+		if errMsg != "" {
+			return u, errMsg
 		}
-		isNotified, _ = strconv.Atoi(string(row[0]["is_notified"]))
+		isNotified = baseInfo.IsNotified
 	case 3: // 日方
-		sql := `SELECT expiry_date FROM japan_company WHERE id=?`
-		row, err := db.Db.Query(sql, utils.Str2int(string(row[0]["company_id"])))
-		if err != nil {
-			return u, "获取日方中介有效期失败"
-		}
 		expiryDate = string(row[0]["expiry_date"])
 	}
 
@@ -235,6 +224,37 @@ func (this *UserModel) GetUserInfo(userInfo *GetUserInfoParameter) (u *GetUserIn
 		Password:   string(row[0]["password"]),
 		IsNotified: isNotified,
 		ExpiryDate: expiryDate,
+	}, ""
+}
+
+type GetBaseInfoReturn struct {
+	ServiceFee       int
+	FixedFee         int
+	ExciseFee        string
+	ProtectionPeriod int
+	IsNotified       int
+}
+
+/*
+* @Title GetBaseInfo
+* @Description 获取本部基础信息
+* @Return data *GetBaseInfoReturn
+* @Return errMsg string
+ */
+func (this *UserModel) GetBaseInfo() (data *GetBaseInfoReturn, errMsg string) {
+	sql := `SELECT service_fee, fixed_fee, excise_fee, protection_period, is_notified
+			FROM base_info
+			WHERE id=1`
+	row, err := db.Db.Query(sql)
+	if err != nil {
+		return data, "获取本部基础信息失败"
+	}
+	return &GetBaseInfoReturn{
+		ServiceFee:       utils.Str2int(string(row[0]["service_fee"])),
+		FixedFee:         utils.Str2int(string(row[0]["fixed_fee"])),
+		ExciseFee:        string(row[0]["excise_fee"]),
+		ProtectionPeriod: utils.Str2int(string(row[0]["protection_period"])),
+		IsNotified:       utils.Str2int(string(row[0]["is_notified"])),
 	}, ""
 }
 

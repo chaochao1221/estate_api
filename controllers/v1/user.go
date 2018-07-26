@@ -4,7 +4,6 @@ import (
 	"estate/middleware"
 	"estate/models/v1"
 	"estate/pkg/redis"
-	"fmt"
 	"regexp"
 	"strconv"
 
@@ -16,11 +15,11 @@ var userModel = new(v1.UserModel)
 // 用户-路由
 func User(parentRoute *gin.RouterGroup) {
 	router := parentRoute.Group("/user")
-	router.POST("login", User_Login)
-	router.POST("reset_password", User_ResetPassword)
+	router.POST("login", User_Login)                  // 2.1 用户-登录
+	router.POST("reset_password", User_ResetPassword) // 2.4 用户-重置密码
 	router.Use(middleware.Auth())
-	router.GET("info", User_Info)
-	router.POST("modify_password", User_ModifyPassword)
+	router.GET("info", User_Info)                       // 2.2 用户-信息
+	router.POST("modify_password", User_ModifyPassword) // 2.3 用户-修改密码
 }
 
 // 用户-登录
@@ -39,7 +38,6 @@ func User_Login(c *gin.Context) {
 	// 若存在重置密码且与传入的密码一致，则修改库中密码，删除redis重置密码，并验证库中邮箱密码的有效性
 	// 若重置密码与传入的密码不一致，则直接去数据库中验证邮箱密码的有效性
 	newPassword, _ := redis.GetString("GET", "resetPassword#"+email)
-	fmt.Println("newPassword", newPassword)
 	if newPassword == password {
 		// 重置密码
 		errMsg := userModel.User_UpdatePassword(email, newPassword)
