@@ -18,6 +18,8 @@ func Init() *gin.Engine {
 	api_v1 := router.Group("/v1")
 	{
 		v1.User(api_v1)
+		v1.Tourists(api_v1)
+		v1.Public(api_v1)
 	}
 
 	// catch no router

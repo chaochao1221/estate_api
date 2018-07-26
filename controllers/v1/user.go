@@ -78,7 +78,8 @@ func User_Login(c *gin.Context) {
 // 用户-信息
 func User_Info(c *gin.Context) {
 	userId, _ := strconv.Atoi(c.Request.Header.Get("user_id"))
-	if userId == 0 {
+	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
+	if userId == 0 || groupId == 0 {
 		c.JSON(400, gin.H{
 			"code": 1010,
 			"msg":  "参数错误",
@@ -87,7 +88,7 @@ func User_Info(c *gin.Context) {
 	}
 
 	// 获取用户信息
-	data, errMsg := userModel.User_Info(userId)
+	data, errMsg := userModel.User_Info(userId, groupId)
 	if errMsg != "" {
 		c.JSON(400, gin.H{
 			"code": 1010,

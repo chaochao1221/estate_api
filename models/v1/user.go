@@ -132,7 +132,7 @@ type UserInfoReturn struct {
 }
 
 // 用户-信息
-func (this *UserModel) User_Info(userId int) (u *UserInfoReturn, errMsg string) {
+func (this *UserModel) User_Info(userId, groupId int) (u *UserInfoReturn, errMsg string) {
 	// 获取用户信息
 	userInfo, errMsg := this.GetUserInfo(&GetUserInfoParameter{UserId: userId})
 	if errMsg != "" {
@@ -142,13 +142,19 @@ func (this *UserModel) User_Info(userId int) (u *UserInfoReturn, errMsg string) 
 		return u, "该用户不存在"
 	}
 
+	// 获取本部基础信息
+	baseInfo, errMsg := this.GetBaseInfo()
+	if errMsg != "" {
+		return u, errMsg
+	}
+
 	return &UserInfoReturn{
-		GroupId:    userInfo.GroupId,
+		GroupId:    groupId,
 		UserId:     userId,
 		UserType:   userInfo.UserType,
 		Name:       userInfo.Name,
 		Email:      userInfo.Email,
-		IsNotified: userInfo.IsNotified,
+		IsNotified: baseInfo.IsNotified,
 	}, ""
 }
 
@@ -158,14 +164,15 @@ type GetUserInfoParameter struct {
 }
 
 type GetUserInfoReturn struct {
-	GroupId    int
-	UserId     int
-	UserType   int
-	Name       string
-	Email      string
-	Password   string
-	IsNotified int
-	ExpiryDate string
+	CompanyId int
+	UserId    int
+	UserType  int
+	Email     string
+	Password  string
+	Name      string
+	Telephone string
+	Fax       string
+	AddTime   string
 }
 
 /*
@@ -179,15 +186,14 @@ func (this *UserModel) GetUserInfo(userInfo *GetUserInfoParameter) (u *GetUserIn
 	// 判断是根据用户id或者邮箱查询用户信息
 	var where string
 	if userInfo.UserId > 0 {
-		where = `u.id=` + strconv.Itoa(userInfo.UserId)
+		where = `id=` + strconv.Itoa(userInfo.UserId)
 	} else {
-		where = `u.email='` + userInfo.Email + `'`
+		where = `email='` + userInfo.Email + `'`
 	}
 
 	// 查询用户信息
-	sql := `SELECT u.id, u.user_type, u.email, u.password, u.name, u.company_id, c.group_id
-			FROM p_user u
-			LEFT JOIN p_company c ON c.id=u.company_id
+	sql := `SELECT id, company_id, user_type, email, password, name, telephone, fax, add_time
+			FROM p_user
 			WHERE ` + where
 	row, err := db.Db.Query(sql)
 	if err != nil {
@@ -197,33 +203,57 @@ func (this *UserModel) GetUserInfo(userInfo *GetUserInfoParameter) (u *GetUserIn
 		return u, "该帐号不存在"
 	}
 
-	// 查询通知状态、日本中介有效期
-	var (
-		groupId, _ = strconv.Atoi(string(row[0]["group_id"]))
-		isNotified int
-		expiryDate string
-	)
-	switch groupId {
-	case 1: // 本部
-		baseInfo, errMsg := this.GetBaseInfo()
-		if errMsg != "" {
-			return u, errMsg
-		}
-		isNotified = baseInfo.IsNotified
-	case 3: // 日方
-		expiryDate = string(row[0]["expiry_date"])
-	}
-
 	// 返回数据
 	return &GetUserInfoReturn{
-		GroupId:    groupId,
-		UserId:     utils.Str2int(string(row[0]["id"])),
-		UserType:   utils.Str2int(string(row[0]["user_type"])),
-		Name:       string(row[0]["name"]),
-		Email:      string(row[0]["email"]),
-		Password:   string(row[0]["password"]),
-		IsNotified: isNotified,
-		ExpiryDate: expiryDate,
+		CompanyId: utils.Str2int(string(row[0]["company_id"])),
+		UserId:    utils.Str2int(string(row[0]["id"])),
+		UserType:  utils.Str2int(string(row[0]["user_type"])),
+		Email:     string(row[0]["email"]),
+		Password:  string(row[0]["password"]),
+		Name:      string(row[0]["name"]),
+		Telephone: string(row[0]["telephone"]),
+		Fax:       string(row[0]["fax"]),
+		AddTime:   string(row[0]["add_time"]),
+	}, ""
+}
+
+type GetCompanyInfoReturn struct {
+	GroupId          int
+	RegionId         int
+	Name             string
+	Adress           string
+	CRecommendNumber int
+	CDealNumber      int
+	EReleaseNumber   int
+	EDealNumber      int
+	ExpiryDate       string
+}
+
+/*
+* @Title GetCompanyInfo
+* @Description 获取公司信息
+* @Parameter companyId int
+* @Return data *GetCompanyInfoReturn
+* @Return errMsg string
+ */
+func (this *UserModel) GetCompanyInfo(companyId int) (data *GetCompanyInfoReturn, errMsg string) {
+	sql := `SELECT group_id, region_id, name, adress, c_recommend_number, c_deal_number, e_release_number, e_deal_number, expiry_date
+			FROM p_company
+			WHERE id=?`
+	row, err := db.Db.Query(sql, companyId)
+	if err != nil {
+		return data, "获取公司信息失败"
+	}
+	return &GetCompanyInfoReturn{
+		GroupId:          utils.Str2int(string(row[0]["group_id"])),
+		RegionId:         utils.Str2int(string(row[0]["region_id"])),
+		Name:             string(row[0]["name"]),
+		Adress:           string(row[0]["adress"]),
+		CRecommendNumber: utils.Str2int(string(row[0]["c_recommend_number"])),
+		CDealNumber:      utils.Str2int(string(row[0]["c_deal_number"])),
+		EReleaseNumber:   utils.Str2int(string(row[0]["e_release_number"])),
+		EDealNumber:      utils.Str2int(string(row[0]["e_deal_number"])),
+		ExpiryDate:       string(row[0]["expiry_date"]),
 	}, ""
 }
 
@@ -292,7 +322,14 @@ func (this *UserModel) User_ResetPassword(email string) (errMsg string) {
 	if userInfo == nil {
 		return "该帐号不存在"
 	}
-	if userInfo.GroupId == 3 && userInfo.ExpiryDate < time.Now().Format("2006-01-02 15:04:05") {
+
+	// 获取公司信息
+	companyInfo, errMsg := this.GetCompanyInfo(userInfo.CompanyId)
+	if errMsg != "" {
+		return errMsg
+	}
+
+	if companyInfo.GroupId == 3 && companyInfo.ExpiryDate < time.Now().Format("2006-01-02 15:04:05") {
 		return "该帐号已过期"
 	}
 
