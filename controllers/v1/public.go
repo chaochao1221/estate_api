@@ -22,6 +22,8 @@ func Public(parentRoute *gin.RouterGroup) {
 	router.DELETE("/estate_manage/del/:estate_id", Public_EstateManageDel)         // 3.3.2 公用-房源管理-删除
 	router.POST("/estate_manage/add_shelves", Public_EstateManageAddShelves)       // 3.3.3 公用-房源管理-上架
 	router.POST("/estate_manage/remove_shelves", Public_EstateManageRemoveShelves) // 3.3.4 公用-房源管理-下架
+	router.POST("/feedback", Public_Feedback)                                      // 3.6 公用-意见反馈
+	router.POST("/contact", Public_Contact)                                        // 3.7 公用-联系方式
 }
 
 // 公用-公司详情
@@ -329,6 +331,63 @@ func Public_EstateManageRemoveShelves(c *gin.Context) {
 	c.JSON(201, gin.H{
 		"code": 0,
 		"msg":  "success",
+	})
+	return
+}
+
+// 公用-意见反馈
+func Public_Feedback(c *gin.Context) {
+	types, _ := strconv.Atoi(c.PostForm("type"))
+	contact := c.PostForm("contact")
+	content := c.PostForm("content")
+	if contact == "" || content == "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "参数错误",
+		})
+		return
+	}
+
+	// 意见反馈
+	errMsg := publicModel.Public_Feedback(types, contact, content)
+	if errMsg != "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  errMsg,
+		})
+		return
+	}
+	c.JSON(201, gin.H{
+		"code": 0,
+		"msg":  "success",
+	})
+	return
+}
+
+// 公用-联系方式
+func Public_Contact(c *gin.Context) {
+	estateId, _ := strconv.Atoi(c.Query("estate_id"))
+	if estateId == 0 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "参数错误",
+		})
+		return
+	}
+
+	// 联系方式
+	data, errMsg := publicModel.Public_Contact(estateId)
+	if errMsg != "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  errMsg,
+		})
+		return
+	}
+	c.JSON(200, gin.H{
+		"code": 0,
+		"msg":  "success",
+		"data": data,
 	})
 	return
 }

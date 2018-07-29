@@ -3,6 +3,7 @@ package v1
 import (
 	"estate/db"
 	"estate/utils"
+	"strconv"
 )
 
 type PublicModel struct{}
@@ -314,4 +315,71 @@ func (this *PublicModel) Public_EstateManageRemoveShelves(estateId int) (errMsg 
 		return "房源上架失败"
 	}
 	return
+}
+
+// 公用-意见反馈
+func (this *PublicModel) Public_Feedback(types int, contact, content string) (errMsg string) {
+	sql := `INSERT INTO p_feedback(type, contact, content) VALUES(?,?,?)`
+	_, err := db.Db.Exec(sql, types, contact, content)
+	if err != nil {
+		return "意见反馈失败"
+	}
+	return
+}
+
+type PublicContactReturn struct {
+	CompanyName string `json:"company_name"`
+	Adress      string `json:"adress"`
+	UserName    string `json:"user_name"`
+	Telephone   string `json:"telephone"`
+	Fax         string `json:"fax"`
+	Email       string `json:"email"`
+}
+
+// 公用-联系方式
+func (this *PublicModel) Public_Contact(estateId int) (data *PublicContactReturn, errMsg string) {
+	// 发布该房源的公司
+	sql := `SELECT u.company_id
+			FROM p_estate e
+			LEFT JOIN p_user u ON u.id=e.user_id
+			WHERE e.id=? AND e.is_del=0`
+	row, err := db.Db.Query(sql, estateId)
+	if err != nil {
+		return data, "获取发布房源公司失败"
+	}
+	if len(row) == 0 {
+		return data, "该房源不存在"
+	}
+	companyId, _ := strconv.Atoi(string(row[0]["company_id"]))
+
+	// 发布该房源的公司主管
+	sql = `SELECT id
+		   FROM p_user
+		   WHERE company_id=? AND user_type=1`
+	row, err = db.Db.Query(sql, companyId)
+	if err != nil {
+		return data, "获取发布该房源的公司主管失败"
+	}
+	userId, _ := strconv.Atoi(string(row[0]["id"]))
+
+	// 公司信息
+	companyInfo, errMsg := userModel.GetCompanyInfo(companyId)
+	if errMsg != "" {
+		return data, errMsg
+	}
+
+	// 用户信息
+	userInfo, errMsg := userModel.GetUserInfo(&GetUserInfoParameter{UserId: userId})
+	if errMsg != "" {
+		return data, errMsg
+	}
+
+	return &PublicContactReturn{
+		CompanyName: companyInfo.Name,
+		Adress:      companyInfo.Adress,
+		UserName:    userInfo.Name,
+		Telephone:   userInfo.Telephone,
+		Fax:         userInfo.Fax,
+		Email:       userInfo.Email,
+	}, ""
 }
