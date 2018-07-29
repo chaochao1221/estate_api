@@ -212,3 +212,106 @@ func (this *PublicModel) Public_SalesManageDel(leaderUserId, groupId, userId int
 	}
 	return
 }
+
+type EstateManagePermissionsParamater struct {
+	GroupId  int
+	UserId   int
+	UserType int
+	EstateId int
+}
+
+/*
+* @Title ExistEstateManagePermissions
+* @Description 是否存在房源管理权限
+* @Parameter e *GetUserInfoParameter
+* @Return data bool
+* @Return errMsg string
+ */
+func (this *PublicModel) ExistEstateManagePermissions(e *EstateManagePermissionsParamater) (data bool, errMsg string) {
+	// 判断该用户是管理员还是普通销售，管理员可以删除本中介公司下的所有房源，销售只能删除自己发布的房源，已成交的房源不允许操作
+	sql := `SELECT e.user_id, u.company_id, e.status
+			FROM p_estate e
+			LEFT JOIN p_user u ON u.id=e.user_id
+			WHERE e.id=? AND e.is_del=0`
+	row, err := db.Db.Query(sql, e.EstateId)
+	if err != nil {
+		return false, "获取房源发布者失败"
+	}
+	if len(row) == 0 {
+		return false, "该房源不存在"
+	}
+	if utils.Str2int(string(row[0]["status"])) == 3 {
+		return false, "该房源已成交，不允许操作"
+	}
+
+	switch e.UserType {
+	case 0: // 销售
+		if e.UserId != utils.Str2int(string(row[0]["user_id"])) {
+			return false, "该用户不是此房源的发布者，不允许操作该房源"
+		}
+	case 1: // 管理员
+		// 用户信息
+		userInfo, errMsg := userModel.GetUserInfo(&GetUserInfoParameter{UserId: e.UserId})
+		if errMsg != "" {
+			return false, errMsg
+		}
+		if userInfo.CompanyId != utils.Str2int(string(row[0]["company_id"])) {
+			return false, "该用户不是此房源公司的管理员，不允许操作该房源"
+		}
+	default:
+		return false, "不存在该用户类型"
+	}
+	return true, ""
+}
+
+// 公用-房源管理删除
+func (this *PublicModel) Public_EstateManageDel(estateId int) (errMsg string) {
+	sql := `UPDATE p_estate SET is_del=1 WHERE id=?`
+	_, err := db.Db.Exec(sql, estateId)
+	if err != nil {
+		return "删除房源失败"
+	}
+	return
+}
+
+// 公用-房源管理上架
+func (this *PublicModel) Public_EstateManageAddShelves(estateId int) (errMsg string) {
+	// 判断该房源是否处于下架状态
+	sql := `SELECT status FROM p_estate WHERE id=?`
+	row, err := db.Db.Query(sql, estateId)
+	if err != nil {
+		return "获取房源状态失败"
+	}
+	if utils.Str2int(string(row[0]["status"])) != 2 {
+		return "该房源不处于下架状态，不允许上架"
+	}
+
+	// 上架
+	sql = `UPDATE p_estate SET status=1 WHERE id=?`
+	_, err = db.Db.Exec(sql, estateId)
+	if err != nil {
+		return "房源上架失败"
+	}
+	return
+}
+
+// 公用-房源管理下架
+func (this *PublicModel) Public_EstateManageRemoveShelves(estateId int) (errMsg string) {
+	// 判断该房源是否处于上架状态
+	sql := `SELECT status FROM p_estate WHERE id=?`
+	row, err := db.Db.Query(sql, estateId)
+	if err != nil {
+		return "获取房源状态失败"
+	}
+	if utils.Str2int(string(row[0]["status"])) != 1 {
+		return "该房源不处于上架状态，不允许下架"
+	}
+
+	// 上架
+	sql = `UPDATE p_estate SET status=2 WHERE id=?`
+	_, err = db.Db.Exec(sql, estateId)
+	if err != nil {
+		return "房源上架失败"
+	}
+	return
+}

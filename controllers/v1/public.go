@@ -14,11 +14,14 @@ var publicModel = new(v1.PublicModel)
 func Public(parentRoute *gin.RouterGroup) {
 	router := parentRoute.Group("/public")
 	router.Use(middleware.Auth())
-	router.GET("/company_detail", Public_CompanyDetail)          // 3.1 公用-公司详情
-	router.GET("/sales_manage/list", Public_SalesManageList)     // 3.2.1 公用-销售管理-列表
-	router.GET("/sales_manage/detail", Public_SalesManageDetail) // 3.2.2 公用-销售管理-详情
-	router.POST("/sales_manage/add", Public_SalesManageAdd)      // 3.2.3 公用-销售管理-添加/编辑
-	router.DELETE("/sales_manage/del", Public_SalesManageDel)    // 3.2.4 公用-销售管理-删除
+	router.GET("/company_detail", Public_CompanyDetail)                            // 3.1 公用-公司详情
+	router.GET("/sales_manage/list", Public_SalesManageList)                       // 3.2.1 公用-销售管理-列表
+	router.GET("/sales_manage/detail", Public_SalesManageDetail)                   // 3.2.2 公用-销售管理-详情
+	router.POST("/sales_manage/add", Public_SalesManageAdd)                        // 3.2.3 公用-销售管理-添加/编辑
+	router.DELETE("/sales_manage/del/:user_id", Public_SalesManageDel)             // 3.2.4 公用-销售管理-删除
+	router.DELETE("/estate_manage/del/:estate_id", Public_EstateManageDel)         // 3.3.2 公用-房源管理-删除
+	router.POST("/estate_manage/add_shelves", Public_EstateManageAddShelves)       // 3.3.3 公用-房源管理-上架
+	router.POST("/estate_manage/remove_shelves", Public_EstateManageRemoveShelves) // 3.3.4 公用-房源管理-下架
 }
 
 // 公用-公司详情
@@ -161,7 +164,7 @@ func Public_SalesManageDel(c *gin.Context) {
 	leaderUserId, _ := strconv.Atoi(c.Request.Header.Get("user_id"))
 	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
 	userType, _ := strconv.Atoi(c.Request.Header.Get("user_type"))
-	userId, _ := strconv.Atoi(c.PostForm("user_id")) // 添加非必传，编辑必传
+	userId, _ := strconv.Atoi(c.Params.ByName("user_id")) // 添加非必传，编辑必传
 	if groupId == 0 || userId == 0 {
 		c.JSON(400, gin.H{
 			"code": 1010,
@@ -179,6 +182,143 @@ func Public_SalesManageDel(c *gin.Context) {
 
 	// 删除
 	errMsg := publicModel.Public_SalesManageDel(leaderUserId, groupId, userId)
+	if errMsg != "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  errMsg,
+		})
+		return
+	}
+	c.JSON(201, gin.H{
+		"code": 0,
+		"msg":  "success",
+	})
+	return
+}
+
+// 公用-房源管理添加/编辑
+
+// 公用-房源管理删除
+func Public_EstateManageDel(c *gin.Context) {
+	userId, _ := strconv.Atoi(c.Request.Header.Get("user_id"))
+	userType, _ := strconv.Atoi(c.Request.Header.Get("user_type"))
+	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
+	estateId, _ := strconv.Atoi(c.Params.ByName("estate_id"))
+	if userId == 0 || groupId == 0 || estateId == 0 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "参数错误",
+		})
+		return
+	}
+
+	// 判断是否存在删除权限
+	_, errMsg := publicModel.ExistEstateManagePermissions(&(v1.EstateManagePermissionsParamater{
+		GroupId:  groupId,
+		UserId:   userId,
+		UserType: userType,
+		EstateId: estateId,
+	}))
+	if errMsg != "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  errMsg,
+		})
+		return
+	}
+
+	// 删除
+	errMsg = publicModel.Public_EstateManageDel(estateId)
+	if errMsg != "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  errMsg,
+		})
+		return
+	}
+	c.JSON(200, gin.H{
+		"code": 0,
+		"msg":  "success",
+	})
+	return
+}
+
+// 公用-房源管理上架
+func Public_EstateManageAddShelves(c *gin.Context) {
+	userId, _ := strconv.Atoi(c.Request.Header.Get("user_id"))
+	userType, _ := strconv.Atoi(c.Request.Header.Get("user_type"))
+	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
+	estateId, _ := strconv.Atoi(c.PostForm("estate_id"))
+	if userId == 0 || groupId == 0 || estateId == 0 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "参数错误",
+		})
+		return
+	}
+
+	// 判断是否存在删除权限
+	_, errMsg := publicModel.ExistEstateManagePermissions(&(v1.EstateManagePermissionsParamater{
+		GroupId:  groupId,
+		UserId:   userId,
+		UserType: userType,
+		EstateId: estateId,
+	}))
+	if errMsg != "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  errMsg,
+		})
+		return
+	}
+
+	// 上架
+	errMsg = publicModel.Public_EstateManageAddShelves(estateId)
+	if errMsg != "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  errMsg,
+		})
+		return
+	}
+	c.JSON(201, gin.H{
+		"code": 0,
+		"msg":  "success",
+	})
+	return
+}
+
+// 公用-房源管理下架
+func Public_EstateManageRemoveShelves(c *gin.Context) {
+	userId, _ := strconv.Atoi(c.Request.Header.Get("user_id"))
+	userType, _ := strconv.Atoi(c.Request.Header.Get("user_type"))
+	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
+	estateId, _ := strconv.Atoi(c.PostForm("estate_id"))
+	if userId == 0 || groupId == 0 || estateId == 0 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "参数错误",
+		})
+		return
+	}
+
+	// 判断是否存在删除权限
+	_, errMsg := publicModel.ExistEstateManagePermissions(&(v1.EstateManagePermissionsParamater{
+		GroupId:  groupId,
+		UserId:   userId,
+		UserType: userType,
+		EstateId: estateId,
+	}))
+	if errMsg != "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  errMsg,
+		})
+		return
+	}
+
+	// 下架
+	errMsg = publicModel.Public_EstateManageRemoveShelves(estateId)
 	if errMsg != "" {
 		c.JSON(400, gin.H{
 			"code": 1010,
