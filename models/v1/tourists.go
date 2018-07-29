@@ -61,7 +61,7 @@ func (this *TouristsModel) Tourists_EstateDetail(estateId int) (data *TouristsEs
 			e.building_structure, e.orientation, e.repair_fee, e.state, e.rent, e.return_rate, e.manage_fee
 			FROM p_estate e
 			LEFT JOIN p_region r ON r.id=e.region_id
-			WHERE e.id=? AND e.status=0 AND e.is_del=0 AND e.add_time<?`
+			WHERE e.id=? AND e.status=1 AND e.is_del=0 AND e.add_time<?`
 	row, err := db.Db.Query(sql, estateId)
 	if err != nil {
 		return data, "获取房源信息失败"
