@@ -63,6 +63,8 @@ func China_CustomerProgressList(c *gin.Context) {
 	keyword := c.Query("keyword")
 	status, _ := strconv.Atoi(c.Query("status"))
 	userId, _ := strconv.Atoi(c.Query("user_id"))
+	perPage, _ := strconv.Atoi(c.Query("per_page"))
+	lastId, _ := strconv.Atoi(c.Query("last_id"))
 	uId, _ := strconv.Atoi(c.Request.Header.Get("user_id"))
 	userType, _ := strconv.Atoi(c.Request.Header.Get("user_type"))
 	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
@@ -82,7 +84,7 @@ func China_CustomerProgressList(c *gin.Context) {
 	}
 
 	// 客户进展
-	data, errMsg := chinaModel.China_CustomerProgressList(keyword, status, userId, uId, userType)
+	data, errMsg := chinaModel.China_CustomerProgressList(keyword, status, userId, perPage, lastId, uId, userType)
 	if errMsg != "" {
 		c.JSON(400, gin.H{
 			"code": 1010,

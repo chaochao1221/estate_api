@@ -43,7 +43,8 @@ func (this *ChinaModel) China_Recommend(estateId, sex, userId, groupId int, name
 }
 
 type ChinaCustomerProgressListReturn struct {
-	List []CustomerProgressList `json:"list"`
+	List       []CustomerProgressList `json:"list"`
+	Pagenation Pagenation             `json:"pagenation"`
 }
 
 type CustomerProgressList struct {
@@ -57,8 +58,9 @@ type CustomerProgressList struct {
 }
 
 // 公用-客户进展列表
-func (this *ChinaModel) China_CustomerProgressList(keyword string, status, userId, uId, userType int) (data *ChinaCustomerProgressListReturn, errMsg string) {
+func (this *ChinaModel) China_CustomerProgressList(keyword string, status, userId, perPage, lastId, uId, userType int) (data *ChinaCustomerProgressListReturn, errMsg string) {
 	data = new(ChinaCustomerProgressListReturn)
+	data.Pagenation.LastId = -1
 
 	// 主管可以看指定销售推荐的客户，销售只能看自己推荐的客户
 	// 筛选状态（1:未对接 2:对接中 3:未赴日 4:已赴日 5:未成约 6:已成约 7:未付款 8:已付款 9:无贷款 10:已贷款）
@@ -78,29 +80,49 @@ func (this *ChinaModel) China_CustomerProgressList(keyword string, status, userI
 		where += ` AND (t.name="` + keyword + `" OR t.wechat="` + keyword + `" OR e.code="` + keyword + `")`
 	}
 
+	// 分页
+	if perPage == 0 {
+		perPage = 10
+	}
+	if lastId > 0 {
+		// 获取当前分页的最后一条数据的时间
+		sql := `SELECT add_time FROM p_recommend WHERE id=?`
+		row, err := db.Db.Query(sql, lastId)
+		if err != nil {
+			return data, "获取房源发布时间失败"
+		}
+		addTime := string(row[0]["add_time"])
+		where += ` AND (r.add_time<"` + addTime + `" OR (e.add_time="` + addTime + `" AND r.id<` + strconv.Itoa(lastId) + `))`
+	}
+
 	// 获取推荐客户列表
 	sql := `SELECT r.id, r.estate_id, r.status, r.add_time, t.name, t.wechat, t.sex
 			FROM p_recommend r
 			LEFT JOIN p_estate e ON e.id=r.estate_id
 			LEFT JOIN p_tourists t ON t.id=r.tourists_id
-			WHERE is_del=0 ` + where + ` ORDER BY r.add_time DESC`
-	rows, err := db.Db.Query(sql)
+			WHERE r.user_id>0 ` + where + ` ORDER BY r.add_time DESC, id DESC LIMIT 0,?`
+	rows, err := db.Db.Query(sql, perPage+1)
 	if err != nil {
 		return nil, "获取客户进展列表失败"
 	}
 	if len(rows) == 0 {
 		return nil, ""
 	}
-	for _, value := range rows {
-		data.List = append(data.List, CustomerProgressList{
-			Id:       utils.Str2int(string(value["id"])),
-			EstateId: utils.Str2int(string(value["estate_id"])),
-			Name:     string(value["name"]),
-			Wechat:   string(value["wechat"]),
-			Sex:      utils.Str2int(string(value["sex"])),
-			Status:   utils.Str2int(string(value["status"])),
-			AddTime:  string(value["add_time"]),
-		})
+	for key, value := range rows {
+		if key < perPage {
+			data.List = append(data.List, CustomerProgressList{
+				Id:       utils.Str2int(string(value["id"])),
+				EstateId: utils.Str2int(string(value["estate_id"])),
+				Name:     string(value["name"]),
+				Wechat:   string(value["wechat"]),
+				Sex:      utils.Str2int(string(value["sex"])),
+				Status:   utils.Str2int(string(value["status"])),
+				AddTime:  string(value["add_time"]),
+			})
+			lastId = utils.Str2int(string(value["id"]))
+		} else {
+			data.Pagenation.LastId = lastId
+		}
 	}
 
 	return

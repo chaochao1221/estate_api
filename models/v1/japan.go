@@ -35,6 +35,7 @@ func (this *JapanModel) Japan_EstateProgress(status, perPage, lastId, userId, us
 	data = new(JapanEstateProgressReturn)
 	data.Pagenation.LastId = -1
 
+	// 条件
 	var where string
 	if userType == 0 { // 销售
 		where = ` AND e.user_id=` + strconv.Itoa(userId)
@@ -43,6 +44,7 @@ func (this *JapanModel) Japan_EstateProgress(status, perPage, lastId, userId, us
 		where += ` AND e.status=` + strconv.Itoa(status)
 	}
 
+	// 分页
 	if perPage == 0 {
 		perPage = 10
 	}
