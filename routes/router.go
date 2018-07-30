@@ -17,9 +17,11 @@ func Init() *gin.Engine {
 
 	api_v1 := router.Group("/v1")
 	{
-		v1.User(api_v1)
-		v1.Tourists(api_v1)
-		v1.Public(api_v1)
+		v1.User(api_v1)     // 用户
+		v1.Tourists(api_v1) // 游客
+		v1.Public(api_v1)   // 公用
+		v1.China(api_v1)    // 中国中介
+		v1.Japan(api_v1)    // 日本中介
 	}
 
 	// catch no router
