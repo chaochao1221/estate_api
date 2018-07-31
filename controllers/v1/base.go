@@ -20,6 +20,7 @@ func Base(parentRoute *gin.RouterGroup) {
 	router.GET("/sales_profit/detail", Base_SalesProfitDetail)                // 7.3.2 本部中介-中介费用统计-详情
 	router.GET("/sales_profit/setting_detail", Base_SalesProfitSettingDetail) // 7.3.3 本部中介-中介费用统计-设置详情
 	router.GET("/sales_profit/setting_modify", Base_SalesProfitSettingModify) // 7.3.4 本部中介-中介费用统计-设置修改
+	router.GET("/wait_distribution/list", Base_WaitDistributionList)          // 7.4.1 本部中介-待分配客户-列表
 }
 
 // 本部中介-日期列表
@@ -236,6 +237,48 @@ func Base_SalesProfitSettingModify(c *gin.Context) {
 	c.JSON(201, gin.H{
 		"code": 0,
 		"msg":  "success",
+	})
+	return
+}
+
+// 本部中介-待分配客户列表
+func Base_WaitDistributionList(c *gin.Context) {
+	perPage, _ := strconv.Atoi(c.Query("per_page"))
+	lastId, _ := strconv.Atoi(c.Query("last_id"))
+	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
+	userType, _ := strconv.Atoi(c.Request.Header.Get("user_type"))
+	if groupId == 0 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "参数错误",
+		})
+		return
+	}
+	if groupId != 1 && userType != 1 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "非本部主管不允许查看待分配客户列表",
+		})
+		return
+	}
+
+	// 待分配客户列表
+	var data interface{}
+	data, errMsg := baseModel.Base_WaitDistributionList(perPage, lastId)
+	if errMsg != "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  errMsg,
+		})
+		return
+	}
+	if data == nil {
+		data = make(map[string]interface{})
+	}
+	c.JSON(200, gin.H{
+		"code": 0,
+		"msg":  "success",
+		"data": data,
 	})
 	return
 }

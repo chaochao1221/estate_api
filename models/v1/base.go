@@ -381,3 +381,87 @@ func (this *BaseModel) Base_SalesProfitSettingModify(estateId int, agencyJson st
 
 	return
 }
+
+type BaseWaitDistributionListReturn struct {
+	List       []WaitDistributionList `json:"list"`
+	Pagenation Pagenation             `json:"pagenation"`
+}
+
+type WaitDistributionList struct {
+	Id      int    `json:"id"`
+	Name    string `json:"name"`
+	Sex     int    `json:"sex"`
+	Wechat  string `json:"wechat"`
+	Source  string `json:"source"`
+	AddTime string `json:"add_time"`
+}
+
+// 本部中介-待分配客户列表
+func (this *BaseModel) Base_WaitDistributionList(perPage, lastId int) (data *BaseWaitDistributionListReturn, errMsg string) {
+	data = new(BaseWaitDistributionListReturn)
+	data.Pagenation.LastId = -1
+
+	// 分页
+	var where string
+	if perPage == 0 {
+		perPage = 10
+	}
+	if lastId > 0 {
+		// 获取当前分页的最后一条数据的时间
+		sql := `SELECT add_time FROM p_recommend WHERE id=?`
+		row, err := db.Db.Query(sql, lastId)
+		if err != nil {
+			return data, "获取推荐时间失败"
+		}
+		addTime := string(row[0]["add_time"])
+		where += ` AND (r.add_time<"` + addTime + `" OR (e.add_time="` + addTime + `" AND r.id<` + strconv.Itoa(lastId) + `))`
+	}
+
+	// 待分配客户列表
+	sql := `SELECT r.id, r.user_id, r.add_time, t.name, t.sex, t.wechat
+			FROM p_recommend r
+			LEFT JOIN p_tourists t ON t.id=r.tourists_id
+			WHERE r.is_distribution=0 ` + where + ` ORDER BY r.add_time DESC, id DESC LIMIT 0,?`
+	rows, err := db.Db.Query(sql, perPage+1)
+	if err != nil {
+		return data, "获取待分配客户失败"
+	}
+	if len(rows) == 0 {
+		return nil, ""
+	}
+	for key, value := range rows {
+		if key < perPage {
+			var (
+				company   string
+				userId, _ = strconv.Atoi(string(value["user_id"]))
+			)
+			if userId > 0 {
+				// 公司名称
+				sql = `SELECT c.name
+					   FROM p_company c
+					   LEFT JOIN p_user u ON u.company_id=c.id
+					   WHERE u.id=?`
+				row, err := db.Db.Query(sql, userId)
+				if err != nil {
+					return data, "获取公司名称失败"
+				}
+				company = string(row[0]["name"])
+			}
+
+			data.List = append(data.List, WaitDistributionList{
+				Id:      utils.Str2int(string(value["id"])),
+				Name:    string(value["name"]),
+				Sex:     utils.Str2int(string(value["sex"])),
+				Wechat:  string(value["wechat"]),
+				Source:  company,
+				AddTime: string(value["add_time"]),
+			})
+
+			lastId = utils.Str2int(string(value["id"]))
+		} else {
+			data.Pagenation.LastId = lastId
+		}
+	}
+
+	return
+}
