@@ -22,6 +22,7 @@ func Init() *gin.Engine {
 		v1.Public(api_v1)   // 公用
 		v1.China(api_v1)    // 中国中介
 		v1.Japan(api_v1)    // 日本中介
+		v1.Base(api_v1)     // 本部中介
 	}
 
 	// catch no router

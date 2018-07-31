@@ -21,7 +21,7 @@ type UserLoginReturn struct {
 // 用户-登录
 func (this *UserModel) User_Login(email, password string) (u *UserLoginReturn, errMsg string) {
 	// 根据不同分组验证其相关邮箱密码有效性
-	sql := `SELECT u.id, u.group_id, u.user_type, c.expiry_date
+	sql := `SELECT u.id, u.user_type, c.group_id, c.expiry_date
 			FROM p_user u
 			LEFT JOIN p_company c ON c.id=u.company_id
 			WHERE u.email=? AND u.password=?`
