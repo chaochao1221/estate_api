@@ -534,8 +534,23 @@ func (this *BaseModel) Base_JapanManageList(keyword string, status, perPage, las
 	data = new(BaseJapanManageListReturn)
 	data.Pagenation.LastId = -1
 
-	// 分页
+	// 条件
 	var where string
+
+	// 关键字
+	if keyword != "" {
+		where = ` AND (c.name='` + keyword + `' OR c.adress='` + keyword + `')`
+	}
+
+	// 是否过期
+	switch status {
+	case 1: // 未过期
+		where += ` AND expiry_date>=curdate() `
+	case 2: // 已过期
+		where += ` AND expiry_date<curdate() `
+	}
+
+	// 分页
 	if perPage == 0 {
 		perPage = 10
 	}
@@ -689,6 +704,274 @@ func (this *BaseModel) Base_JapanManageDel(id int) (errMsg string) {
 	if err != nil {
 		transaction.Rollback()
 		return "房源删除失败"
+	}
+
+	// 公司及员工硬删除
+	sql = `DELETE FROM c, u
+		   FROM p_company c
+		   LEFT JOIN p_user u ON u.company_id=c.id
+		   WHERE c.id=?`
+	_, err = transaction.Exec(sql, id)
+	if err != nil {
+		transaction.Rollback()
+		return "公司及员工删除失败"
+	}
+
+	// 提交事务
+	if err = transaction.Commit(); err != nil {
+		transaction.Rollback()
+		return "提交事务失败"
+	}
+
+	return
+}
+
+type BaseChinaManageRegionListReturn struct {
+	List []ChinaManageRegionList `json:"list"`
+}
+
+type ChinaManageRegionList struct {
+	RegionId   int    `json:"region_id"`
+	RegionName string `json:"region_name"`
+	Mark       int    `json:"mark"`
+}
+
+// 本部中介-中国中介管理地区列表
+func (this *BaseModel) Base_ChinaManageRegionList() (data *BaseChinaManageRegionListReturn, errMsg string) {
+	data = new(BaseChinaManageRegionListReturn)
+
+	// 地区公司
+	sql := `SELECT id, region_id 
+			FROM p_company
+			WHERE group_id=2`
+	rows, err := db.Db.Query(sql)
+	if err != nil {
+		return data, "获取地区公司失败"
+	}
+	regionCompanyMap := make(map[int]int)
+	if len(rows) > 0 {
+		for _, value := range rows {
+			regionCompanyMap[utils.Str2int(string(value["region_id"]))] = utils.Str2int(string(value["id"]))
+		}
+	}
+
+	// 地区列表
+	sql = `SELECT id, name
+		   FROM p_region
+		   WHERE group_id=2`
+	rows, err = db.Db.Query(sql)
+	if err != nil {
+		return data, "获取地区列表失败"
+	}
+	if len(rows) == 0 {
+		return nil, ""
+	}
+	for _, value := range rows {
+		var (
+			mark        int
+			regionId, _ = strconv.Atoi(string(value["id"]))
+		)
+		if _, ok := regionCompanyMap[regionId]; ok {
+			mark = 1
+		}
+		data.List = append(data.List, ChinaManageRegionList{
+			RegionId:   regionId,
+			RegionName: string(value["name"]),
+			Mark:       mark,
+		})
+	}
+
+	return
+}
+
+type BaseChinaManageListReturn struct {
+	List       []ChinaManageList `json:"list"`
+	Pagenation Pagenation        `json:"pagenation"`
+}
+
+type ChinaManageList struct {
+	Id          int    `json:"id"`
+	CompanyName string `json:"company_name"`
+	UserName    string `json:"user_name"`
+	Telephone   string `json:"telephone"`
+	AddTime     string `json:"add_time"`
+}
+
+// 本部中介-中国中介管理列表
+func (this *BaseModel) Base_ChinaManageList(keyword string, regionId, perPage, lastId int) (data *BaseChinaManageListReturn, errMsg string) {
+	data = new(BaseChinaManageListReturn)
+	data.Pagenation.LastId = -1
+
+	// 条件
+	var where string
+
+	// 关键字
+	if keyword != "" {
+		where = ` AND (c.name='` + keyword + `' OR c.adress='` + keyword + `')`
+	}
+
+	// 地区id
+	if regionId > 0 {
+		where += ` AND c.region_id=` + strconv.Itoa(regionId)
+	}
+
+	// 分页
+	if perPage == 0 {
+		perPage = 10
+	}
+	if lastId > 0 {
+		// 获取当前分页的最后一条数据的时间
+		sql := `SELECT add_time FROM p_company WHERE id=?`
+		row, err := db.Db.Query(sql, lastId)
+		if err != nil {
+			return data, "获取公司新建时间失败"
+		}
+		addTime := string(row[0]["add_time"])
+		where += ` AND (c.add_time<"` + addTime + `" OR (c.add_time="` + addTime + `" AND c.id<` + strconv.Itoa(lastId) + `))`
+	}
+
+	// 列表
+	sql := `SELECT c.id, c.name companyName, c.add_time, u.name userName, u.telephone
+			FROM p_company c
+			LEFT JOIN p_user u ON u.company_id=c.id
+			WHERE c.group_id=2 AND u.user_type=0 ` + where + ` ORDER BY c.add_time DESC, c.id DESC LIMIT 0,?`
+	rows, err := db.Db.Query(sql, perPage+1)
+	if err != nil {
+		return data, "获取列表失败"
+	}
+	if len(rows) == 0 {
+		return nil, ""
+	}
+	for key, value := range rows {
+		if key < perPage {
+			data.List = append(data.List, ChinaManageList{
+				Id:          utils.Str2int(string(value["id"])),
+				CompanyName: string(value["companyName"]),
+				UserName:    string(value["userName"]),
+				Telephone:   string(value["telephone"]),
+				AddTime:     string(value["add_time"]),
+			})
+			lastId = utils.Str2int(string(value["id"]))
+		} else {
+			data.Pagenation.LastId = lastId
+		}
+	}
+
+	return
+}
+
+type BaseChinaManageDetailReturn struct {
+	Id          int    `json:"id"`
+	RegionId    int    `json:"region_id"`
+	RegionName  string `json:"region_name"`
+	CompanyName string `json:"company_name"`
+	Address     string `json:"address"`
+	UserName    string `json:"user_name"`
+	Telephone   string `json:"telephone"`
+	Fax         string `json:"fax"`
+	Email       string `json:"email"`
+	Password    string `json:"password"`
+}
+
+// 本部中介-中国中介管理详情
+func (this *BaseModel) Base_ChinaManageDetail(id int) (data *BaseChinaManageDetailReturn, errMsg string) {
+	// 详情
+	sql := `SELECT c.id, c.region_id, r.name regionName, c.name companyName, c.adress, u.name userName, u.telephone, u.fax, u.email
+			FROM p_company c
+			LEFT JOIN p_region r ON r.id=c.region_id
+			LEFT JOIN p_user u ON u.company_id=c.id
+			WHERE c.id=? AND u.user_type=0`
+	row, err := db.Db.Query(sql, id)
+	if err != nil {
+		return nil, "获取详情失败"
+	}
+	return &BaseChinaManageDetailReturn{
+		Id:          utils.Str2int(string(row[0]["id"])),
+		RegionId:    utils.Str2int(string(row[0]["region_id"])),
+		RegionName:  string(row[0]["regionName"]),
+		CompanyName: string(row[0]["companyName"]),
+		Address:     string(row[0]["adress"]),
+		UserName:    string(row[0]["userName"]),
+		Telephone:   string(row[0]["telephone"]),
+		Fax:         string(row[0]["fax"]),
+		Email:       string(row[0]["email"]),
+	}, ""
+}
+
+// 本部中介-日本中介管理添加/编辑
+func (this *BaseModel) Base_ChinaManageAdd(addParam *BaseChinaManageDetailReturn) (errMsg string) {
+	// 开启事务
+	transaction := db.Db.NewSession()
+	if err := transaction.Begin(); err != nil {
+		return "开启事务失败"
+	}
+
+	// 根据id是否为0来判断是编辑还是新增
+	if addParam.Id == 0 { // 新增
+		// 更新公司
+		sql := `INSERT INTO p_company(group_id, region_id, name, adress ) VALUES(?,?,?,?)`
+		row, err := transaction.Exec(sql, 2, addParam.RegionId, addParam.CompanyName, addParam.Address)
+		if err != nil {
+			transaction.Rollback()
+			return "更新公司失败"
+		}
+		lastId, _ := row.LastInsertId()
+
+		// 更新公司主管
+		sql = `INSERT INTO p_user(company_id, user_type, email, password, name, telephone, fax) VALUES(?,?,?,?,?,?,?)`
+		_, err = transaction.Exec(sql, int(lastId), 1, addParam.Email, addParam.Password, addParam.UserName, addParam.Telephone, addParam.Fax)
+		if err != nil {
+			transaction.Rollback()
+			return "更新公司主管失败"
+		}
+	} else { // 编辑
+		// 更新公司
+		sql := `UPDATE p_company
+				SET region_id=?, name=?, adress=?
+				WHERE id=?`
+		_, err := transaction.Exec(sql, addParam.RegionId, addParam.CompanyName, addParam.Address, addParam.Id)
+		if err != nil {
+			transaction.Rollback()
+			return "更新公司失败."
+		}
+
+		// 更新公司主管
+		sql = `UPDATE p_user
+			   SET email=?, password, name=?, telephone=?, fax=?
+			   WHERE company_id=? AND user_type=1`
+		_, err = transaction.Exec(sql, addParam.Email, addParam.Password, addParam.UserName, addParam.Telephone, addParam.Fax, addParam.Id)
+		if err != nil {
+			transaction.Rollback()
+			return "更新公司主管失败."
+		}
+	}
+
+	// 提交事务
+	if err := transaction.Commit(); err != nil {
+		transaction.Rollback()
+		return "提交事务失败"
+	}
+
+	return
+}
+
+// 本部中介-中国中介管理删除
+func (this *BaseModel) Base_ChinaManageDel(id int) (errMsg string) {
+	// 开启事务
+	transaction := db.Db.NewSession()
+	if err := transaction.Begin(); err != nil {
+		return "开启事务失败"
+	}
+
+	// 推荐关系删除
+	sql := `UPDATE p_recommend r
+			LEFT JOIN p_user u ON u.id=r.user_id
+			SET r.user_id=0
+			WHERE u.company_id=?`
+	_, err := transaction.Exec(sql, id)
+	if err != nil {
+		transaction.Rollback()
+		return "推荐关系删除失败"
 	}
 
 	// 公司及员工硬删除

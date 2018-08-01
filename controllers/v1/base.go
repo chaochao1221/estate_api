@@ -28,6 +28,11 @@ func Base(parentRoute *gin.RouterGroup) {
 	router.GET("/japan_manage/detail", Base_JapanManageDetail)                        // 7.5.2 本部中介-日本中介管理-详情
 	router.POST("/japan_manage/add", Base_JapanManageAdd)                             // 7.5.3 本部中介-日本中介管理-添加/编辑
 	router.DELETE("/japan_manage/del/:id", Base_JapanManageDel)                       // 7.5.4 本部中介-日本中介管理-删除
+	router.GET("/china_manage/region_list", Base_ChinaManageRegionList)               // 7.6.1 本部中介-中国中介管理-地区列表
+	router.GET("/china_manage/list", Base_ChinaManageList)                            // 7.6.2 本部中介-中国中介管理-列表
+	router.GET("/china_manage/detail", Base_ChinaManageDetail)                        // 7.6.3 本部中介-中国中介管理-详情
+	router.POST("/china_manage/add", Base_ChinaManageAdd)                             // 7.6.4 本部中介-中国中介管理-添加/编辑
+	router.DELETE("/china_manage/del/:id", Base_ChinaManageDel)                       // 7.6.5 本部中介-中国中介管理-删除
 }
 
 // 本部中介-日期列表
@@ -512,6 +517,209 @@ func Base_JapanManageDel(c *gin.Context) {
 
 	// 删除
 	errMsg := baseModel.Base_JapanManageDel(id)
+	if errMsg != "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  errMsg,
+		})
+		return
+	}
+	c.JSON(200, gin.H{
+		"code": 0,
+		"msg":  "success",
+	})
+	return
+}
+
+// 本部中介-中国中介管理地区列表
+func Base_ChinaManageRegionList(c *gin.Context) {
+	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
+	userType, _ := strconv.Atoi(c.Request.Header.Get("user_type"))
+	if groupId == 0 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "参数错误",
+		})
+		return
+	}
+	if groupId != 1 && userType != 1 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "非本部主管不允许查看中国中介地区",
+		})
+		return
+	}
+
+	// 列表
+	var data interface{}
+	data, errMsg := baseModel.Base_ChinaManageRegionList()
+	if errMsg != "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  errMsg,
+		})
+		return
+	}
+	if data == nil {
+		data = make(map[string]interface{})
+	}
+	c.JSON(200, gin.H{
+		"code": 0,
+		"msg":  "success",
+		"data": data,
+	})
+	return
+}
+
+// 本部中介-中国中介管理列表
+func Base_ChinaManageList(c *gin.Context) {
+	keyword := c.Query("keyword")
+	regionId, _ := strconv.Atoi(c.Query("region_id"))
+	perPage, _ := strconv.Atoi(c.Query("per_page"))
+	lastId, _ := strconv.Atoi(c.Query("last_id"))
+	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
+	userType, _ := strconv.Atoi(c.Request.Header.Get("user_type"))
+	if groupId == 0 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "参数错误",
+		})
+		return
+	}
+	if groupId != 1 && userType != 1 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "非本部主管不允许查看中国中介",
+		})
+		return
+	}
+
+	// 列表
+	var data interface{}
+	data, errMsg := baseModel.Base_ChinaManageList(keyword, regionId, perPage, lastId)
+	if errMsg != "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  errMsg,
+		})
+		return
+	}
+	if data == nil {
+		data = make(map[string]interface{})
+	}
+	c.JSON(200, gin.H{
+		"code": 0,
+		"msg":  "success",
+		"data": data,
+	})
+	return
+}
+
+// 本部中介-中国中介管理详情
+func Base_ChinaManageDetail(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Query("id"))
+	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
+	userType, _ := strconv.Atoi(c.Request.Header.Get("user_type"))
+	if id == 0 || groupId == 0 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "参数错误",
+		})
+		return
+	}
+	if groupId != 1 && userType != 1 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "非本部主管不允许查看中国中介详情",
+		})
+		return
+	}
+
+	// 详情
+	data, errMsg := baseModel.Base_ChinaManageDetail(id)
+	if errMsg != "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  errMsg,
+		})
+		return
+	}
+	c.JSON(200, gin.H{
+		"code": 0,
+		"msg":  "success",
+		"data": data,
+	})
+	return
+}
+
+// 本部中介-中国中介管理添加/编辑
+func Base_ChinaManageAdd(c *gin.Context) {
+	addParam := &(v1.BaseChinaManageDetailReturn{
+		Id:          utils.Str2int(c.PostForm("id")),
+		RegionId:    utils.Str2int(c.PostForm("region_id")),
+		CompanyName: c.PostForm("company_name"),
+		Address:     c.PostForm("address"),
+		UserName:    c.PostForm("user_name"),
+		Telephone:   c.PostForm("telephone"),
+		Fax:         c.PostForm("fax"),
+		Email:       c.PostForm("email"),
+		Password:    c.PostForm("password"),
+	})
+	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
+	userType, _ := strconv.Atoi(c.Request.Header.Get("user_type"))
+	if addParam.RegionId == 0 || addParam.CompanyName == "" || addParam.Address == "" || addParam.UserName == "" || addParam.Telephone == "" || addParam.Fax == "" || addParam.Email == "" || groupId == 0 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "参数错误",
+		})
+		return
+	}
+	if groupId != 1 && userType != 1 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "非本部主管不允许添加/编辑中国中介公司",
+		})
+		return
+	}
+
+	// 添加/编辑
+	errMsg := baseModel.Base_ChinaManageAdd(addParam)
+	if errMsg != "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  errMsg,
+		})
+		return
+	}
+	c.JSON(201, gin.H{
+		"code": 0,
+		"msg":  "success",
+	})
+	return
+}
+
+// 本部中介-中国中介管理删除
+func Base_ChinaManageDel(c *gin.Context) {
+	id, _ := strconv.Atoi(c.PostForm("id"))
+	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
+	userType, _ := strconv.Atoi(c.Request.Header.Get("user_type"))
+	if id == 0 || groupId == 0 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "参数错误",
+		})
+		return
+	}
+	if groupId != 1 && userType != 1 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "非本部主管不允许删除中国中介公司",
+		})
+		return
+	}
+
+	// 删除
+	errMsg := baseModel.Base_ChinaManageDel(id)
 	if errMsg != "" {
 		c.JSON(400, gin.H{
 			"code": 1010,
