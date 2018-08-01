@@ -33,12 +33,16 @@ func Base(parentRoute *gin.RouterGroup) {
 	router.GET("/china_manage/detail", Base_ChinaManageDetail)                        // 7.6.3 本部中介-中国中介管理-详情
 	router.POST("/china_manage/add", Base_ChinaManageAdd)                             // 7.6.4 本部中介-中国中介管理-添加/编辑
 	router.DELETE("/china_manage/del/:id", Base_ChinaManageDel)                       // 7.6.5 本部中介-中国中介管理-删除
-
-	router.GET("/protection_period/show", Base_ProtectionPeriodShow) // 7.8.1 本部中介-保护期-显示
-	router.POST("/protection_period/set", Base_ProtectionPeriodSet)  // 7.8.2 本部中介-保护期-设置
-	router.GET("/agency_fee/show", Base_AgencyFeeShow)               // 7.9.1 本部中介-中介费-显示
-	router.POST("/agency_fee/set", Base_AgencyFeeSet)                // 7.9.2 本部中介-中介费-设置
-	router.POST("/notify_set", Base_NotifySet)                       // 7.10 本部中介-通知设置
+	router.GET("/customer_manage/source_list", Base_CustomerManageSourceList)         // 7.7.1 本部中介-客户管理-来源列表
+	router.GET("/customer_manage/list", Base_CustomerManageList)                      // 7.7.2 本部中介-客户管理-列表
+	router.GET("/customer_manage/detail", Base_CustomerManageDetail)                  // 7.7.3 本部中介-客户管理-详情
+	router.POST("/customer_manage/edit", Base_CustomerManageEdit)                     // 7.7.4 本部中介-客户管理-编辑
+	router.DELETE("/customer_manage/del", Base_CustomerManageDel)                     // 7.7.5 本部中介-客户管理-删除
+	router.GET("/protection_period/show", Base_ProtectionPeriodShow)                  // 7.8.1 本部中介-保护期-显示
+	router.POST("/protection_period/set", Base_ProtectionPeriodSet)                   // 7.8.2 本部中介-保护期-设置
+	router.GET("/agency_fee/show", Base_AgencyFeeShow)                                // 7.9.1 本部中介-中介费-显示
+	router.POST("/agency_fee/set", Base_AgencyFeeSet)                                 // 7.9.2 本部中介-中介费-设置
+	router.POST("/notify_set", Base_NotifySet)                                        // 7.10 本部中介-通知设置
 }
 
 // 本部中介-日期列表
@@ -734,6 +738,210 @@ func Base_ChinaManageDel(c *gin.Context) {
 		return
 	}
 	c.JSON(200, gin.H{
+		"code": 0,
+		"msg":  "success",
+	})
+	return
+}
+
+// 本部中介-客户管理来源列表
+func Base_CustomerManageSourceList(c *gin.Context) {
+	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
+	if groupId == 0 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "参数错误",
+		})
+		return
+	}
+	if groupId != 1 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "非本部中介不允许查看客户管理来源列表",
+		})
+		return
+	}
+
+	// 列表
+	var data interface{}
+	data, errMsg := baseModel.Base_CustomerManageSourceList()
+	if errMsg != "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  errMsg,
+		})
+		return
+	}
+	if data == nil {
+		data = make(map[string]interface{})
+	}
+	c.JSON(200, gin.H{
+		"code": 0,
+		"msg":  "success",
+		"data": data,
+	})
+	return
+}
+
+// 本部中介-客户管理列表
+func Base_CustomerManageList(c *gin.Context) {
+	cusParam := &(v1.BaseCustomerManageListParamater{
+		Keyword:   c.Query("keyword"),
+		UserId:    utils.Str2int(c.Query("user_id")),
+		CompanyId: utils.Str2int(c.Query("company_id")),
+		Status:    utils.Str2int(c.Query("status")),
+		PerPage:   utils.Str2int(c.Query("per_page")),
+		LastId:    utils.Str2int(c.Query("last_id")),
+	})
+	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
+	if groupId == 0 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "参数错误",
+		})
+		return
+	}
+	if groupId != 1 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "非本部中介不允许查看客户管理列表",
+		})
+		return
+	}
+
+	// 列表
+	var data interface{}
+	data, errMsg := baseModel.Base_CustomerManageList(cusParam)
+	if errMsg != "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  errMsg,
+		})
+		return
+	}
+	if data == nil {
+		data = make(map[string]interface{})
+	}
+	c.JSON(200, gin.H{
+		"code": 0,
+		"msg":  "success",
+		"data": data,
+	})
+	return
+}
+
+// 本部中介-客户管理详情
+func Base_CustomerManageDetail(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Query("id"))
+	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
+	if id == 0 || groupId == 0 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "参数错误",
+		})
+		return
+	}
+	if groupId != 1 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "非本部中介不允许查看客户管理详情",
+		})
+		return
+	}
+
+	// 列表
+	data, errMsg := baseModel.Base_CustomerManageDetail(id)
+	if errMsg != "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  errMsg,
+		})
+		return
+	}
+	c.JSON(200, gin.H{
+		"code": 0,
+		"msg":  "success",
+		"data": data,
+	})
+	return
+}
+
+// 本部中介-客户管理编辑
+func Base_CustomerManageEdit(c *gin.Context) {
+	cusParam := &(v1.BaseCustomerManageDetailReturn{
+		Id:         utils.Str2int(c.PostForm("id")),
+		Name:       c.PostForm("name"),
+		Sex:        utils.Str2int(c.PostForm("sex")),
+		Wechat:     c.PostForm("wechat"),
+		IsButt:     utils.Str2int(c.PostForm("is_butt")),
+		IsToJapan:  utils.Str2int(c.PostForm("is_to_japan")),
+		IsAgree:    utils.Str2int(c.PostForm("is_agree")),
+		IsPay:      utils.Str2int(c.PostForm("is_pay")),
+		IsLoan:     utils.Str2int(c.PostForm("is_loan")),
+		EstateCode: c.PostForm("estate_code"),
+		Price:      c.PostForm("price"),
+	})
+	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
+	if groupId == 0 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "参数错误",
+		})
+		return
+	}
+	if groupId != 1 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "非本部中介不允许编辑客户管理",
+		})
+		return
+	}
+
+	// 编辑
+	errMsg := baseModel.Base_CustomerManageEdit(cusParam)
+	if errMsg != "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  errMsg,
+		})
+		return
+	}
+	c.JSON(201, gin.H{
+		"code": 0,
+		"msg":  "success",
+	})
+	return
+}
+
+// 本部中介-客户管理删除
+func Base_CustomerManageDel(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Params.ByName("id"))
+	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
+	if id == 0 || groupId == 0 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "参数错误",
+		})
+		return
+	}
+	if groupId != 1 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "非本部中介不允许删除客户管理",
+		})
+		return
+	}
+
+	// 删除
+	errMsg := baseModel.Base_CustomerManageDel(id)
+	if errMsg != "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  errMsg,
+		})
+		return
+	}
+	c.JSON(201, gin.H{
 		"code": 0,
 		"msg":  "success",
 	})

@@ -994,6 +994,268 @@ func (this *BaseModel) Base_ChinaManageDel(id int) (errMsg string) {
 	return
 }
 
+type BaseCustomerManageSourceListReturn struct {
+	List []CustomerManageSourceList `json:"list"`
+}
+
+type CustomerManageSourceList struct {
+	CompanyId   int    `json:"company_id"`
+	CompanyName string `json:"company_name"`
+}
+
+// 本部中介-客户管理来源列表
+func (this *BaseModel) Base_CustomerManageSourceList() (data *BaseCustomerManageSourceListReturn, errMsg string) {
+	data = new(BaseCustomerManageSourceListReturn)
+
+	// 列表
+	sql := `SELECT u.company_id, c.name
+			FROM p_recommend r
+			LEFT JOIN p_user u ON u.id=r.user_id
+			LEFT JOIN p_company c ON c.id=u.company_id
+			WHERE r.is_distribution=1
+			GROUP BY u.company_id`
+	rows, err := db.Db.Query(sql)
+	if err != nil {
+		return data, "获取列表失败"
+	}
+	if len(rows) == 0 {
+		return nil, ""
+	}
+	for _, value := range rows {
+		var (
+			companyId, _ = strconv.Atoi(string(value["company_id"]))
+			companyName  = string(value["name"])
+		)
+		if companyId == 0 {
+			companyId, companyName = -1, "游客咨询"
+		}
+		data.List = append(data.List, CustomerManageSourceList{
+			CompanyId:   companyId,
+			CompanyName: companyName,
+		})
+	}
+	return
+}
+
+type BaseCustomerManageListParamater struct {
+	Keyword   string
+	UserId    int
+	CompanyId int
+	Status    int
+	PerPage   int
+	LastId    int
+}
+
+type BaseCustomerManageListReturn struct {
+	List       []CustomerManageList `json:"list"`
+	Pagenation Pagenation           `json:"pagenation"`
+}
+
+type CustomerManageList struct {
+	Id        int    `json:"id"`
+	Name      string `json:"name"`
+	Sex       int    `json:"sex"`
+	Wechat    string `json:"wechat"`
+	AddTime   string `json:"add_time"`
+	IsButt    int    `json:"is_butt"`
+	IsToJapan int    `json:"is_to_japan"`
+	IsAgree   int    `json:"is_agree"`
+	IsPay     int    `json:"is_pay"`
+	IsLoan    int    `json:"is_loan"`
+}
+
+// 本部中介-客户管理列表
+func (this *BaseModel) Base_CustomerManageList(cusParam *BaseCustomerManageListParamater) (data *BaseCustomerManageListReturn, errMsg string) {
+	data = new(BaseCustomerManageListReturn)
+	data.Pagenation.LastId = -1
+
+	// 条件
+	var where string
+
+	// 关键字
+	if cusParam.Keyword != "" {
+		where = ` AND (t.name="` + cusParam.Keyword + `" OR t.wechat="` + cusParam.Keyword + `" OR e.code="` + cusParam.Keyword + `")`
+	}
+
+	// 销售id
+	if cusParam.UserId > 0 {
+		where += ` AND d.user_id=` + strconv.Itoa(cusParam.UserId)
+	}
+
+	// 公司id
+	if cusParam.CompanyId == -1 { // 游客咨询
+		where += ` AND r.user_id=0`
+	} else if cusParam.CompanyId > 0 { // 公司推荐
+		where += ` AND u.company_id=` + strconv.Itoa(cusParam.CompanyId)
+	}
+
+	// 状态
+	switch cusParam.Status {
+	case 1:
+		where += ` AND r.is_butt=0`
+	case 2:
+		where += ` AND r.is_butt=1`
+	case 3:
+		where += ` AND r.is_to_japan=0`
+	case 4:
+		where += ` AND r.is_to_japan=1`
+	case 5:
+		where += ` AND r.is_agree=0`
+	case 6:
+		where += ` AND r.is_agree=1`
+	case 7:
+		where += ` AND r.is_pay=0`
+	case 8:
+		where += ` AND r.is_pay=1`
+	case 9:
+		where += ` AND r.is_loan=0`
+	case 10:
+		where += ` AND r.is_loan=1`
+	default:
+		return data, "不存在该状态"
+	}
+
+	// 分页
+	if cusParam.PerPage == 0 {
+		cusParam.PerPage = 10
+	}
+	if cusParam.LastId > 0 {
+		// 获取当前分页的最后一条数据的时间
+		sql := `SELECT add_time FROM p_recommend WHERE id=?`
+		row, err := db.Db.Query(sql, cusParam.LastId)
+		if err != nil {
+			return data, "获取房源推荐时间失败"
+		}
+		addTime := string(row[0]["add_time"])
+		where += ` AND (r.add_time<"` + addTime + `" OR (e.add_time="` + addTime + `" AND r.id<` + strconv.Itoa(cusParam.LastId) + `))`
+	}
+
+	// 列表
+	sql := `SELECT r.id, r.add_time, r.is_butt, r.is_to_japan, r.is_agree, r.is_pay, r.is_loan, t.name, t.sex, t.wechat
+			FROM p_recommend r
+			LEFT JOIN p_tourists t ON t.id=r.tourists_id
+			LEFT JOIN base_distribution d ON d.recommend_id=r.id
+			LEFT JOIN p_user u ON u.id=r.user_id
+			LEFT JOIN p_estate e ON e.id=r.estate_id
+			WHERE r.is_distribution=1 ` + where + ` ORDER BY r.add_time DESC, id DESC LIMIT 0,?`
+	rows, err := db.Db.Query(sql, cusParam.PerPage+1)
+	if err != nil {
+		return data, "获取客户列表失败"
+	}
+	if len(rows) == 0 {
+		return nil, ""
+	}
+	for key, value := range rows {
+		if key < cusParam.PerPage {
+			data.List = append(data.List, CustomerManageList{
+				Id:        utils.Str2int(string(value["id"])),
+				Name:      string(value["name"]),
+				Sex:       utils.Str2int(string(value["sex"])),
+				Wechat:    string(value["wechat"]),
+				AddTime:   string(value["add_time"]),
+				IsButt:    utils.Str2int(string(value["is_butt"])),
+				IsToJapan: utils.Str2int(string(value["is_to_japan"])),
+				IsAgree:   utils.Str2int(string(value["is_agree"])),
+				IsPay:     utils.Str2int(string(value["is_pay"])),
+				IsLoan:    utils.Str2int(string(value["is_loan"])),
+			})
+
+			cusParam.LastId = utils.Str2int(string(value["id"]))
+		} else {
+			data.Pagenation.LastId = cusParam.LastId
+		}
+	}
+
+	return
+}
+
+type BaseCustomerManageDetailReturn struct {
+	Id         int    `json:"id"`
+	Name       string `json:"name"`
+	Sex        int    `json:"sex"`
+	Wechat     string `json:"wechat"`
+	IsButt     int    `json:"is_butt"`
+	IsToJapan  int    `json:"is_to_japan"`
+	IsAgree    int    `json:"is_agree"`
+	IsPay      int    `json:"is_pay"`
+	IsLoan     int    `json:"is_loan"`
+	EstateCode string `json:"estate_code"`
+	Price      string `json:"price"`
+}
+
+// 本部中介-客户管理详情
+func (this *BaseModel) Base_CustomerManageDetail(id int) (data *BaseCustomerManageDetailReturn, errMsg string) {
+	// 详情
+	sql := `SELECT r.id, r.is_butt, r.is_to_japan, r.is_agree, r.is_pay, r.is_loan, t.name, t.sex, t.wechat, e.code, e.price
+			FROM p_recommend r
+			LEFT JOIN p_tourists t ON t.id=r.tourists_id
+			LEFT JOIN p_estate e ON e.id=r.estate_id
+			WHERE r.id=?`
+	row, err := db.Db.Query(sql, id)
+	if err != nil {
+		return data, "获取客户详情失败"
+	}
+	return &BaseCustomerManageDetailReturn{
+		Id:         utils.Str2int(string(row[0]["id"])),
+		Name:       string(row[0]["name"]),
+		Sex:        utils.Str2int(string(row[0]["sex"])),
+		Wechat:     string(row[0]["wechat"]),
+		IsButt:     utils.Str2int(string(row[0]["is_butt"])),
+		IsToJapan:  utils.Str2int(string(row[0]["is_to_japan"])),
+		IsAgree:    utils.Str2int(string(row[0]["is_agree"])),
+		IsPay:      utils.Str2int(string(row[0]["is_pay"])),
+		IsLoan:     utils.Str2int(string(row[0]["is_loan"])),
+		EstateCode: string(row[0]["code"]),
+		Price:      string(row[0]["price"]),
+	}, ""
+}
+
+// 本部中介-客户管理编辑
+func (this *BaseModel) Base_CustomerManageEdit(cusParam *BaseCustomerManageDetailReturn) (errMsg string) {
+	// 更新客户信息
+	sql := `UPDATE p_recommend r
+			LEFT JOIN p_tourists t ON t.id=r.tourists_id
+			LEFT JOIN p_estate e ON e.id=r.estate_id
+			SET r.is_butt=?, r.is_to_japan=?, r.is_agree=?, r.is_pay=?, r.is_loan=?, t.name=?, t.sex=?, t.wechat=?, e.code=?, e.price=?
+			WHERE r.id=?`
+	_, err := db.Db.Exec(sql, cusParam.IsButt, cusParam.IsToJapan, cusParam.IsAgree, cusParam.IsPay, cusParam.IsLoan, cusParam.Name, cusParam.Sex, cusParam.Wechat, cusParam.EstateCode, cusParam.Price)
+	if err != nil {
+		return "更新客户信息失败"
+	}
+	return
+}
+
+// 本部中介-客户管理删除
+func (this *BaseModel) Base_CustomerManageDel(id int) (errMsg string) {
+	// 获取推荐状态
+	sql := `SELECT is_pay
+			FROM p_recommend
+			WHERE id=?`
+	row, err := db.Db.Query(sql, id)
+	if err != nil {
+		return "获取推荐状态失败"
+	}
+	if len(row) == 0 {
+		return "该客户记录不存在"
+	}
+	isPay, _ := strconv.Atoi(string(row[0]["is_pay"]))
+	if isPay == 1 {
+		return "该客户已经付款，不允许删除"
+	}
+
+	// 删除
+	sql = `DELETE d, r
+		   FROM p_recommend r
+		   LEFT JOIN base_distribution d ON d.recommend_id=r.id
+		   WHERE r.id=?`
+	_, err = db.Db.Exec(sql, id)
+	if err != nil {
+		return "删除客户失败"
+	}
+
+	return
+}
+
 type BaseProtectionPeriodShowReturn struct {
 	ProtectionPeriod int `json:"protection_period"`
 }
