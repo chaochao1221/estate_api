@@ -465,3 +465,53 @@ func (this *BaseModel) Base_WaitDistributionList(perPage, lastId int) (data *Bas
 
 	return
 }
+
+// 本部中介-待分配客户分配
+func (this *BaseModel) Base_WaitDistributionDistribution(id, userId int) (errMsg string) {
+	// 开启事务
+	transaction := db.Db.NewSession()
+	if err := transaction.Begin(); err != nil {
+		return "开启事务失败"
+	}
+
+	// 分配
+	sql := `INSERT INTO base_distribution(recommend_id, user_id) VALUES(?,?)`
+	_, err := transaction.Exec(sql, id, userId)
+	if err != nil {
+		transaction.Rollback()
+		return "更新分配失败"
+	}
+
+	// 更新推荐状态
+	sql = `UPDATE p_recommend
+		   SET is_distribution=1
+		   WHERE id=?`
+	_, err = transaction.Exec(sql, id)
+	if err != nil {
+		transaction.Rollback()
+		return "更新推荐状态失败"
+	}
+
+	// 提交事务
+	if err = transaction.Commit(); err != nil {
+		transaction.Rollback()
+		return "提交事务失败"
+	}
+
+	return
+}
+
+// 本部中介-待分配客户删除
+func (this *BaseModel) Base_WaitDistributionDel(id int) (errMsg string) {
+	// 删除待分配客户
+	sql := `DELETE r, t
+			FROM p_recommend r
+			LEFT JOIN p_tourists t ON t.id=r.tourists_id
+			WHERE r.id=?`
+	_, err := db.Db.Exec(sql, id)
+	if err != nil {
+		return "待分配客户删除失败"
+	}
+
+	return
+}

@@ -14,13 +14,15 @@ var baseModel = new(v1.BaseModel)
 func Base(parentRoute *gin.RouterGroup) {
 	router := parentRoute.Group("/base")
 	router.Use(middleware.Auth())
-	router.GET("/date_list", Base_DateList)                                   // 7.1 本部中介-日期列表
-	router.GET("/sales_achievement", Base_SalesAchievement)                   // 7.2 本部中介-销售业绩
-	router.GET("/sales_profit/list", Base_SalesProfitList)                    // 7.3.1 本部中介-中介费用统计-列表
-	router.GET("/sales_profit/detail", Base_SalesProfitDetail)                // 7.3.2 本部中介-中介费用统计-详情
-	router.GET("/sales_profit/setting_detail", Base_SalesProfitSettingDetail) // 7.3.3 本部中介-中介费用统计-设置详情
-	router.GET("/sales_profit/setting_modify", Base_SalesProfitSettingModify) // 7.3.4 本部中介-中介费用统计-设置修改
-	router.GET("/wait_distribution/list", Base_WaitDistributionList)          // 7.4.1 本部中介-待分配客户-列表
+	router.GET("/date_list", Base_DateList)                                           // 7.1 本部中介-日期列表
+	router.GET("/sales_achievement", Base_SalesAchievement)                           // 7.2 本部中介-销售业绩
+	router.GET("/sales_profit/list", Base_SalesProfitList)                            // 7.3.1 本部中介-中介费用统计-列表
+	router.GET("/sales_profit/detail", Base_SalesProfitDetail)                        // 7.3.2 本部中介-中介费用统计-详情
+	router.GET("/sales_profit/setting_detail", Base_SalesProfitSettingDetail)         // 7.3.3 本部中介-中介费用统计-设置详情
+	router.POST("/sales_profit/setting_modify", Base_SalesProfitSettingModify)        // 7.3.4 本部中介-中介费用统计-设置修改
+	router.GET("/wait_distribution/list", Base_WaitDistributionList)                  // 7.4.1 本部中介-待分配客户-列表
+	router.POST("/wait_distribution/distribution", Base_WaitDistributionDistribution) // 7.4.2 本部中介-待分配客户-分配
+	router.DELETE("/wait_distribution/del/:id", Base_WaitDistributionDel)             // 7.4.3 本部中介-待分配客户-删除
 }
 
 // 本部中介-日期列表
@@ -279,6 +281,79 @@ func Base_WaitDistributionList(c *gin.Context) {
 		"code": 0,
 		"msg":  "success",
 		"data": data,
+	})
+	return
+}
+
+// 本部中介-待分配客户分配
+func Base_WaitDistributionDistribution(c *gin.Context) {
+	id, _ := strconv.Atoi(c.PostForm("id"))
+	userId, _ := strconv.Atoi(c.PostForm("user_id"))
+	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
+	userType, _ := strconv.Atoi(c.Request.Header.Get("user_type"))
+	if id == 0 || userId == 0 || groupId == 0 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "参数错误",
+		})
+		return
+	}
+	if groupId != 1 && userType != 1 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "非本部主管不允许分配客户",
+		})
+		return
+	}
+
+	// 分配客户
+	errMsg := baseModel.Base_WaitDistributionDistribution(id, userId)
+	if errMsg != "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  errMsg,
+		})
+		return
+	}
+	c.JSON(201, gin.H{
+		"code": 0,
+		"msg":  "success",
+	})
+	return
+}
+
+// 本部中介-待分配客户删除
+func Base_WaitDistributionDel(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Params.ByName("id"))
+	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
+	userType, _ := strconv.Atoi(c.Request.Header.Get("user_type"))
+	if id == 0 || groupId == 0 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "参数错误",
+		})
+		return
+	}
+	if groupId != 1 && userType != 1 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "非本部主管不允许删除客户",
+		})
+		return
+	}
+
+	// 删除待分配客户
+	errMsg := baseModel.Base_WaitDistributionDel(id)
+	if errMsg != "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  errMsg,
+		})
+		return
+	}
+	c.JSON(200, gin.H{
+		"code": 0,
+		"msg":  "success",
 	})
 	return
 }
