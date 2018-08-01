@@ -993,3 +993,97 @@ func (this *BaseModel) Base_ChinaManageDel(id int) (errMsg string) {
 
 	return
 }
+
+type BaseProtectionPeriodShowReturn struct {
+	ProtectionPeriod int `json:"protection_period"`
+}
+
+// 本部中介-保护期显示
+func (this *BaseModel) Base_ProtectionPeriodShow() (data *BaseProtectionPeriodShowReturn, errMsg string) {
+	// 本部基础信息
+	baseInfo, errMsg := userModel.GetBaseInfo()
+	if errMsg != "" {
+		return data, errMsg
+	}
+	return &BaseProtectionPeriodShowReturn{
+		ProtectionPeriod: baseInfo.ProtectionPeriod,
+	}, ""
+}
+
+// 本部中介-保护期设置
+func (this *BaseModel) Base_ProtectionPeriodSet(protectionPeriod int) (errMsg string) {
+	// 更新保护期
+	sql := `UPDATE base_info
+			SET protection_period=?
+			WHERE id=1`
+	_, err := db.Db.Exec(sql, protectionPeriod)
+	if err != nil {
+		return "更新保护期失败"
+	}
+	return
+}
+
+type BaseAgencyFeeShowReturn struct {
+	ServiceFee int    `json:"service_fee"`
+	FixedFee   int    `json:"fixed_fee"`
+	ExciseFee  string `json:"excise_fee"`
+}
+
+// 本部中介-中介费显示
+func (this *BaseModel) Base_AgencyFeeShow() (data *BaseAgencyFeeShowReturn, errMsg string) {
+	// 本部基础信息
+	baseInfo, errMsg := userModel.GetBaseInfo()
+	if errMsg != "" {
+		return data, errMsg
+	}
+	return &BaseAgencyFeeShowReturn{
+		ServiceFee: baseInfo.ServiceFee,
+		FixedFee:   baseInfo.FixedFee,
+		ExciseFee:  baseInfo.ExciseFee,
+	}, ""
+}
+
+// 本部中介-中介费设置
+func (this *BaseModel) Base_AgencyFeeSet(serviceFee, fixedFee int, exciseFee string) (errMsg string) {
+	// 更新中介费
+	sql := `UPDATE base_info
+			SET service_fee=?, fixed_fee=?, excise_fee=?
+			WHERE id=1`
+	_, err := db.Db.Exec(sql, serviceFee, fixedFee, exciseFee)
+	if err != nil {
+		return "更新中介费失败"
+	}
+	return
+}
+
+type BaseNotifySetReturn struct {
+	IsNotified int `json:"is_notified"`
+}
+
+// 本部中介-通知设置
+func (this *BaseModel) Base_NotifySet() (data *BaseNotifySetReturn, errMsg string) {
+	// 本部基础信息
+	baseInfo, errMsg := userModel.GetBaseInfo()
+	if errMsg != "" {
+		return data, errMsg
+	}
+
+	// 根据当前通知状态来获取需要更新的状态
+	var isNotified int
+	if baseInfo.IsNotified == 0 {
+		isNotified = 1
+	}
+
+	// 更新通知状态
+	sql := `UPDATE base_info
+			SET is_notified=?
+			WHERE id=1`
+	_, err := db.Db.Exec(sql, isNotified)
+	if err != nil {
+		return nil, "更新中介费失败"
+	}
+
+	return &BaseNotifySetReturn{
+		IsNotified: isNotified,
+	}, ""
+}

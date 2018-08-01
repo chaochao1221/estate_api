@@ -33,6 +33,12 @@ func Base(parentRoute *gin.RouterGroup) {
 	router.GET("/china_manage/detail", Base_ChinaManageDetail)                        // 7.6.3 本部中介-中国中介管理-详情
 	router.POST("/china_manage/add", Base_ChinaManageAdd)                             // 7.6.4 本部中介-中国中介管理-添加/编辑
 	router.DELETE("/china_manage/del/:id", Base_ChinaManageDel)                       // 7.6.5 本部中介-中国中介管理-删除
+
+	router.GET("/protection_period/show", Base_ProtectionPeriodShow) // 7.8.1 本部中介-保护期-显示
+	router.POST("/protection_period/set", Base_ProtectionPeriodSet)  // 7.8.2 本部中介-保护期-设置
+	router.GET("/agency_fee/show", Base_AgencyFeeShow)               // 7.9.1 本部中介-中介费-显示
+	router.POST("/agency_fee/set", Base_AgencyFeeSet)                // 7.9.2 本部中介-中介费-设置
+	router.POST("/notify_set", Base_NotifySet)                       // 7.10 本部中介-通知设置
 }
 
 // 本部中介-日期列表
@@ -730,6 +736,188 @@ func Base_ChinaManageDel(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"code": 0,
 		"msg":  "success",
+	})
+	return
+}
+
+// 本部中介-保护期显示
+func Base_ProtectionPeriodShow(c *gin.Context) {
+	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
+	userType, _ := strconv.Atoi(c.Request.Header.Get("user_type"))
+	if groupId == 0 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "参数错误",
+		})
+		return
+	}
+	if groupId != 1 && userType != 1 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "非本部主管不允查看保护期设置",
+		})
+		return
+	}
+
+	// 显示
+	data, errMsg := baseModel.Base_ProtectionPeriodShow()
+	if errMsg != "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  errMsg,
+		})
+		return
+	}
+	c.JSON(200, gin.H{
+		"code": 0,
+		"msg":  "success",
+		"data": data,
+	})
+	return
+}
+
+// 本部中介-保护期设置
+func Base_ProtectionPeriodSet(c *gin.Context) {
+	protectionPeriod, _ := strconv.Atoi(c.PostForm("protection_period"))
+	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
+	userType, _ := strconv.Atoi(c.Request.Header.Get("user_type"))
+	if protectionPeriod < 0 || protectionPeriod > 99 || groupId == 0 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "参数错误",
+		})
+		return
+	}
+	if groupId != 1 && userType != 1 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "非本部主管不允修改保护期设置",
+		})
+		return
+	}
+
+	// 设置
+	errMsg := baseModel.Base_ProtectionPeriodSet(protectionPeriod)
+	if errMsg != "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  errMsg,
+		})
+		return
+	}
+	c.JSON(201, gin.H{
+		"code": 0,
+		"msg":  "success",
+	})
+	return
+}
+
+// 本部中介-中介费显示
+func Base_AgencyFeeShow(c *gin.Context) {
+	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
+	userType, _ := strconv.Atoi(c.Request.Header.Get("user_type"))
+	if groupId == 0 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "参数错误",
+		})
+		return
+	}
+	if groupId != 1 && userType != 1 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "非本部主管不允查看中介费设置",
+		})
+		return
+	}
+
+	// 显示
+	data, errMsg := baseModel.Base_AgencyFeeShow()
+	if errMsg != "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  errMsg,
+		})
+		return
+	}
+	c.JSON(200, gin.H{
+		"code": 0,
+		"msg":  "success",
+		"data": data,
+	})
+	return
+}
+
+// 本部中介-中介费设置
+func Base_AgencyFeeSet(c *gin.Context) {
+	serviceFee, _ := strconv.Atoi(c.PostForm("service_fee"))
+	fixedFee, _ := strconv.Atoi(c.PostForm("fixed_fee"))
+	exciseFee := c.PostForm("excise_fee")
+	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
+	userType, _ := strconv.Atoi(c.Request.Header.Get("user_type"))
+	if serviceFee == 0 || exciseFee == "" || groupId == 0 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "参数错误",
+		})
+		return
+	}
+	if groupId != 1 && userType != 1 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "非本部主管不允修改中介费设置",
+		})
+		return
+	}
+
+	// 设置
+	errMsg := baseModel.Base_AgencyFeeSet(serviceFee, fixedFee, exciseFee)
+	if errMsg != "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  errMsg,
+		})
+		return
+	}
+	c.JSON(201, gin.H{
+		"code": 0,
+		"msg":  "success",
+	})
+	return
+}
+
+// 本部中介-通知设置
+func Base_NotifySet(c *gin.Context) {
+	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
+	userType, _ := strconv.Atoi(c.Request.Header.Get("user_type"))
+	if groupId == 0 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "参数错误",
+		})
+		return
+	}
+	if groupId != 1 && userType != 1 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "非本部主管不允通知设置",
+		})
+		return
+	}
+
+	// 设置
+	data, errMsg := baseModel.Base_NotifySet()
+	if errMsg != "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  errMsg,
+		})
+		return
+	}
+	c.JSON(201, gin.H{
+		"code": 0,
+		"msg":  "success",
+		"data": data,
 	})
 	return
 }
