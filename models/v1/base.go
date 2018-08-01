@@ -515,3 +515,198 @@ func (this *BaseModel) Base_WaitDistributionDel(id int) (errMsg string) {
 
 	return
 }
+
+type BaseJapanManageListReturn struct {
+	List       []JapanManageList `json:"list"`
+	Pagenation Pagenation        `json:"pagenation"`
+}
+
+type JapanManageList struct {
+	Id          int    `json:"id"`
+	CompanyName string `json:"company_name"`
+	UserName    string `json:"user_name"`
+	Telephone   string `json:"telephone"`
+	ExpiryDate  string `json:"expiry_date"`
+}
+
+// 本部中介-日本中介管理列表
+func (this *BaseModel) Base_JapanManageList(keyword string, status, perPage, lastId int) (data *BaseJapanManageListReturn, errMsg string) {
+	data = new(BaseJapanManageListReturn)
+	data.Pagenation.LastId = -1
+
+	// 分页
+	var where string
+	if perPage == 0 {
+		perPage = 10
+	}
+	if lastId > 0 {
+		// 获取当前分页的最后一条数据的时间
+		sql := `SELECT add_time FROM p_company WHERE id=?`
+		row, err := db.Db.Query(sql, lastId)
+		if err != nil {
+			return data, "获取会社新建时间失败"
+		}
+		addTime := string(row[0]["add_time"])
+		where += ` AND (c.add_time<"` + addTime + `" OR (c.add_time="` + addTime + `" AND c.id<` + strconv.Itoa(lastId) + `))`
+	}
+
+	// 列表
+	sql := `SELECT c.id, c.name companyName, c.expiry_date, u.name userName, u.telephone
+			FROM p_company c
+			LEFT JOIN p_user u ON u.company_id=c.id
+			WHERE c.group_id=3 AND u.user_type=0 ` + where + ` ORDER BY c.add_time DESC, c.id DESC LIMIT 0,?`
+	rows, err := db.Db.Query(sql, perPage+1)
+	if err != nil {
+		return data, "获取列表失败"
+	}
+	if len(rows) == 0 {
+		return nil, ""
+	}
+	for key, value := range rows {
+		if key < perPage {
+			data.List = append(data.List, JapanManageList{
+				Id:          utils.Str2int(string(value["id"])),
+				CompanyName: string(value["companyName"]),
+				UserName:    string(value["userName"]),
+				Telephone:   string(value["telephone"]),
+				ExpiryDate:  string(value["expiry_date"]),
+			})
+			lastId = utils.Str2int(string(value["id"]))
+		} else {
+			data.Pagenation.LastId = lastId
+		}
+	}
+
+	return
+}
+
+type BaseJapanManageDetailReturn struct {
+	Id          int    `json:"id"`
+	CompanyName string `json:"company_name"`
+	Address     string `json:"address"`
+	UserName    string `json:"user_name"`
+	Telephone   string `json:"telephone"`
+	Fax         string `json:"fax"`
+	Email       string `json:"email"`
+	Password    string `json:"password"`
+	ExpiryDate  string `json:"expiry_date"`
+}
+
+// 本部中介-日本中介管理详情
+func (this *BaseModel) Base_JapanManageDetail(id int) (data *BaseJapanManageDetailReturn, errMsg string) {
+	// 详情
+	sql := `SELECT c.id, c.name companyName, c.adress, c.expiry_date, u.name userName, u.telephone, u.fax, u.email
+			FROM p_company c
+			LEFT JOIN p_user u ON u.company_id=c.id
+			WHERE c.id=? AND u.user_type=0`
+	row, err := db.Db.Query(sql, id)
+	if err != nil {
+		return nil, "获取详情失败"
+	}
+	return &BaseJapanManageDetailReturn{
+		Id:          utils.Str2int(string(row[0]["id"])),
+		CompanyName: string(row[0]["companyName"]),
+		Address:     string(row[0]["adress"]),
+		UserName:    string(row[0]["userName"]),
+		Telephone:   string(row[0]["telephone"]),
+		Fax:         string(row[0]["fax"]),
+		Email:       string(row[0]["email"]),
+		ExpiryDate:  string(row[0]["expiry_date"]),
+	}, ""
+}
+
+// 本部中介-日本中介管理添加/编辑
+func (this *BaseModel) Base_JapanManageAdd(addParam *BaseJapanManageDetailReturn) (errMsg string) {
+	// 开启事务
+	transaction := db.Db.NewSession()
+	if err := transaction.Begin(); err != nil {
+		return "开启事务失败"
+	}
+
+	// 根据id是否为0来判断是编辑还是新增
+	if addParam.Id == 0 { // 新增
+		// 更新公司
+		sql := `INSERT INTO p_company(group_id, name, adress, expiry_date) VALUES(?,?,?,?)`
+		row, err := transaction.Exec(sql, 3, addParam.CompanyName, addParam.Address, addParam.ExpiryDate)
+		if err != nil {
+			transaction.Rollback()
+			return "更新公司失败"
+		}
+		lastId, _ := row.LastInsertId()
+
+		// 更新公司主管
+		sql = `INSERT INTO p_user(company_id, user_type, email, password, name, telephone, fax) VALUES(?,?,?,?,?,?,?)`
+		_, err = transaction.Exec(sql, int(lastId), 1, addParam.Email, addParam.Password, addParam.UserName, addParam.Telephone, addParam.Fax)
+		if err != nil {
+			transaction.Rollback()
+			return "更新公司主管失败"
+		}
+	} else { // 编辑
+		// 更新公司
+		sql := `UPDATE p_company
+				SET name=?, adress=?, expiry_date=?
+				WHERE id=?`
+		_, err := transaction.Exec(sql, addParam.CompanyName, addParam.Address, addParam.ExpiryDate, addParam.Id)
+		if err != nil {
+			transaction.Rollback()
+			return "更新公司失败."
+		}
+
+		// 更新公司主管
+		sql = `UPDATE p_user
+			   SET email=?, password, name=?, telephone=?, fax=?
+			   WHERE company_id=? AND user_type=1`
+		_, err = transaction.Exec(sql, addParam.Email, addParam.Password, addParam.UserName, addParam.Telephone, addParam.Fax, addParam.Id)
+		if err != nil {
+			transaction.Rollback()
+			return "更新公司主管失败."
+		}
+	}
+
+	// 提交事务
+	if err := transaction.Commit(); err != nil {
+		transaction.Rollback()
+		return "提交事务失败"
+	}
+
+	return
+}
+
+// 本部中介-日本中介管理删除
+func (this *BaseModel) Base_JapanManageDel(id int) (errMsg string) {
+	// 开启事务
+	transaction := db.Db.NewSession()
+	if err := transaction.Begin(); err != nil {
+		return "开启事务失败"
+	}
+
+	// 房源软删除
+	sql := `UPDATE p_estate e
+			LEFT JOIN p_user u ON u.id=e.user_id
+			SET e.is_del=1
+			WHERE u.company_id=?`
+	_, err := transaction.Exec(sql, id)
+	if err != nil {
+		transaction.Rollback()
+		return "房源删除失败"
+	}
+
+	// 公司及员工硬删除
+	sql = `DELETE FROM c, u
+		   FROM p_company c
+		   LEFT JOIN p_user u ON u.company_id=c.id
+		   WHERE c.id=?`
+	_, err = transaction.Exec(sql, id)
+	if err != nil {
+		transaction.Rollback()
+		return "公司及员工删除失败"
+	}
+
+	// 提交事务
+	if err = transaction.Commit(); err != nil {
+		transaction.Rollback()
+		return "提交事务失败"
+	}
+
+	return
+}
