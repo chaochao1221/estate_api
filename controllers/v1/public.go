@@ -22,6 +22,7 @@ func Public(parentRoute *gin.RouterGroup) {
 	router.GET("/sales_manage/detail", Public_SalesManageDetail)                   // 3.2.2 公用-销售管理-详情
 	router.POST("/sales_manage/add", Public_SalesManageAdd)                        // 3.2.3 公用-销售管理-添加/编辑
 	router.DELETE("/sales_manage/del/:user_id", Public_SalesManageDel)             // 3.2.4 公用-销售管理-删除
+	router.POST("/estate_manage/add", Public_EstateManageAdd)                      // 3.3.1 公用-房源管理-添加/编辑
 	router.DELETE("/estate_manage/del/:estate_id", Public_EstateManageDel)         // 3.3.2 公用-房源管理-删除
 	router.POST("/estate_manage/add_shelves", Public_EstateManageAddShelves)       // 3.3.3 公用-房源管理-上架
 	router.POST("/estate_manage/remove_shelves", Public_EstateManageRemoveShelves) // 3.3.4 公用-房源管理-下架
@@ -203,6 +204,62 @@ func Public_SalesManageDel(c *gin.Context) {
 }
 
 // 公用-房源管理添加/编辑
+func Public_EstateManageAdd(c *gin.Context) {
+	estparam := &(v1.PublicEstateManageAddParameter{
+		EstateId:          utils.Str2int(c.PostForm("estate_id")),
+		Price:             utils.Str2int(c.PostForm("price")),
+		Points:            utils.Str2int(c.PostForm("points")),
+		Huxing:            c.PostForm("huxing"),
+		MeasureArea:       c.PostForm("measure_area"),
+		HousingType:       utils.Str2int(c.PostForm("housing_type")),
+		Floor:             utils.Str2int(c.PostForm("floor")),
+		TotalFloor:        utils.Str2int(c.PostForm("total_floor")),
+		BuildingTime:      c.PostForm("building_time"),
+		BuildingStructure: utils.Str2int(c.PostForm("building_structure")),
+		LandRights:        utils.Str2int(c.PostForm("land_rights")),
+		Orientation:       c.PostForm("orientation"),
+		State:             utils.Str2int(c.PostForm("state")),
+		Rent:              utils.Str2int(c.PostForm("rent")),
+		ReturnRate:        c.PostForm("return_rate"),
+		RepairFee:         utils.Str2int(c.PostForm("repair_fee")),
+		ManageFee:         utils.Str2int(c.PostForm("manage_fee")),
+		RegionId:          utils.Str2int(c.PostForm("region_id")),
+		Traffic:           c.PostForm("traffic"),
+		Address:           c.PostForm("address"),
+		Picture:           c.PostForm("picture"),
+		UserId:            utils.Str2int(c.Request.Header.Get("user_id")),
+	})
+	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
+	if estparam.UserId == 0 || groupId == 0 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "参数错误",
+		})
+		return
+	}
+	if groupId != 1 && groupId != 3 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "非本部、日本中介，不允许发布房源",
+		})
+		return
+	}
+
+	// 添加/编辑
+	errMsg := publicModel.Public_EstateManageAdd(estparam)
+	if errMsg != "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  errMsg,
+		})
+		return
+	}
+	c.JSON(201, gin.H{
+		"code": 0,
+		"msg":  "success",
+	})
+	return
+}
 
 // 公用-房源管理删除
 func Public_EstateManageDel(c *gin.Context) {

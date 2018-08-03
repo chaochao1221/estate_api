@@ -6,11 +6,16 @@ import (
 	"estate/utils"
 	"strconv"
 	"strings"
+
+	"github.com/golibs/uuid"
 )
 
 type PublicModel struct{}
 
-var userModel = new(UserModel)
+var (
+	userModel = new(UserModel)
+	baseModel = new(BaseModel)
+)
 
 type PublicCompanyDetailReturn struct {
 	GroupId          int    `json:"group_id"`
@@ -265,6 +270,87 @@ func (this *PublicModel) ExistEstateManagePermissions(e *EstateManagePermissions
 		return false, "不存在该用户类型"
 	}
 	return true, ""
+}
+
+type PublicEstateManageAddParameter struct {
+	EstateId          int
+	Price             int
+	Points            int
+	Huxing            string
+	MeasureArea       string
+	HousingType       int
+	Floor             int
+	TotalFloor        int
+	BuildingTime      string
+	BuildingStructure int
+	LandRights        int
+	Orientation       string
+	State             int
+	Rent              int
+	ReturnRate        string
+	RepairFee         int
+	ManageFee         int
+	RegionId          int
+	Traffic           string
+	Address           string
+	Picture           string
+	UserId            int
+}
+
+// 公用-房源管理添加/编辑
+func (this *PublicModel) Public_EstateManageAdd(estParam *PublicEstateManageAddParameter) (errMsg string) {
+	// 中介费
+	agencyFee, errMsg := this.GetAgencyFee(estParam.EstateId, estParam.Price)
+	if errMsg != "" {
+		return errMsg
+	}
+
+	// 更新房产
+	if estParam.EstateId == 0 { // 新增
+		sql := `INSERT INTO p_estate(user_id, code, agency_fee, price, points, measure_area, huxing, housing_type, total_floor, floor, building_time, building_structure, land_rights, orientation, state, rent, return_rate, repair_fee, manage_fee, region_id, traffic, address, picture) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+		_, err := db.Db.Exec(sql, estParam.UserId, uuid.Rand().Hex(), agencyFee, estParam.Price, estParam.Points, estParam.MeasureArea, estParam.Huxing, estParam.HousingType, estParam.TotalFloor, estParam.Floor, estParam.BuildingTime, estParam.BuildingStructure, estParam.LandRights, estParam.Orientation, estParam.State, estParam.Rent, estParam.ReturnRate, estParam.RepairFee, estParam.ManageFee, estParam.RegionId, estParam.Traffic, estParam.Address, estParam.Picture)
+		if err != nil {
+			return "新增房产失败"
+		}
+	} else { // 编辑
+		sql := `UPDATE p_estate
+				SET agency_fee=?, price=?, points=?, measure_area=?, huxing=?, housing_type=?, total_floor=?, floor=?, building_time=?, building_structure=?, land_rights=?, orientation=?, state=?, rent=?, return_rate=?, repair_fee=?, manage_fee=?, region_id=?, traffic=?, address=?, picture=?
+				WHERE id=?`
+		_, err := db.Db.Exec(sql, agencyFee, estParam.Price, estParam.Points, estParam.MeasureArea, estParam.Huxing, estParam.HousingType, estParam.TotalFloor, estParam.Floor, estParam.BuildingTime, estParam.BuildingStructure, estParam.LandRights, estParam.Orientation, estParam.State, estParam.Rent, estParam.ReturnRate, estParam.RepairFee, estParam.ManageFee, estParam.RegionId, estParam.Traffic, estParam.Address, estParam.Picture, estParam.EstateId)
+		if err != nil {
+			return "更新房产失败"
+		}
+	}
+
+	return
+}
+
+/*
+* @Title GetAgencyFee
+* @Description 中介费
+* @Parameter price int
+* @Return data int
+* @Return errMsg string
+ */
+func (this *PublicModel) GetAgencyFee(estateId, price int) (data int, errMsg string) {
+	if estateId == 0 {
+		// 本部基础信息
+		baseInfo, errMsg := userModel.GetBaseInfo()
+		if errMsg != "" {
+			return data, errMsg
+		}
+		data = utils.Float64Toint(float64(price)*(float64(baseInfo.ServiceFee)/100)*(utils.Str2float64(baseInfo.ExciseFee)/100) + float64(baseInfo.FixedFee))
+	} else {
+		// 中介费详情
+		profit, errMsg := baseModel.Base_SalesProfitSettingDetail(estateId)
+		if errMsg != "" {
+			return data, errMsg
+		}
+		data = utils.Float64Toint(float64(price)*(float64(profit.Buyer.ServiceFee)/100)*(utils.Str2float64(profit.Buyer.ExciseFee)/100)+float64(profit.Buyer.FixedFee)) +
+			utils.Float64Toint(float64(price)*(float64(profit.Seller.ServiceFee)/100)*(utils.Str2float64(profit.Seller.ExciseFee)/100)+float64(profit.Seller.FixedFee))
+	}
+
+	return
 }
 
 // 公用-房源管理删除
