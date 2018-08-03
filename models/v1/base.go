@@ -414,7 +414,7 @@ func (this *BaseModel) Base_WaitDistributionList(perPage, lastId int) (data *Bas
 			return data, "获取推荐时间失败"
 		}
 		addTime := string(row[0]["add_time"])
-		where += ` AND (r.add_time<"` + addTime + `" OR (e.add_time="` + addTime + `" AND r.id<` + strconv.Itoa(lastId) + `))`
+		where += ` AND (r.add_time<"` + addTime + `" OR (r.add_time="` + addTime + `" AND r.id<` + strconv.Itoa(lastId) + `))`
 	}
 
 	// 待分配客户列表

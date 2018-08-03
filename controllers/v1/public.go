@@ -3,6 +3,7 @@ package v1
 import (
 	"estate/middleware"
 	"estate/models/v1"
+	"estate/utils"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -13,6 +14,8 @@ var publicModel = new(v1.PublicModel)
 // 公用-路由
 func Public(parentRoute *gin.RouterGroup) {
 	router := parentRoute.Group("/public")
+	router.GET("/japan_region_list", Public_JapanRegionList) // 3.4 公用-日本地区列表
+	router.GET("/estate_detail", Public_EstateDetail)        // 3.6 公用-房源详情
 	router.Use(middleware.Auth())
 	router.GET("/company_detail", Public_CompanyDetail)                            // 3.1 公用-公司详情
 	router.GET("/sales_manage/list", Public_SalesManageList)                       // 3.2.1 公用-销售管理-列表
@@ -22,8 +25,9 @@ func Public(parentRoute *gin.RouterGroup) {
 	router.DELETE("/estate_manage/del/:estate_id", Public_EstateManageDel)         // 3.3.2 公用-房源管理-删除
 	router.POST("/estate_manage/add_shelves", Public_EstateManageAddShelves)       // 3.3.3 公用-房源管理-上架
 	router.POST("/estate_manage/remove_shelves", Public_EstateManageRemoveShelves) // 3.3.4 公用-房源管理-下架
-	router.POST("/feedback", Public_Feedback)                                      // 3.6 公用-意见反馈
-	router.POST("/contact", Public_Contact)                                        // 3.7 公用-联系方式
+	router.GET("/estate_list", Public_EstateList)                                  // 3.5 公用-房源列表
+	router.POST("/feedback", Public_Feedback)                                      // 3.7 公用-意见反馈
+	router.POST("/contact", Public_Contact)                                        // 3.8 公用-联系方式
 }
 
 // 公用-公司详情
@@ -331,6 +335,99 @@ func Public_EstateManageRemoveShelves(c *gin.Context) {
 	c.JSON(201, gin.H{
 		"code": 0,
 		"msg":  "success",
+	})
+	return
+}
+
+// 公用-日本地区列表
+func Public_JapanRegionList(c *gin.Context) {
+	// 日本地区列表
+	var data interface{}
+	data, errMsg := publicModel.Public_JapanRegionList()
+	if errMsg != "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  errMsg,
+		})
+		return
+	}
+	if data == nil {
+		data = make(map[string]interface{})
+	}
+	c.JSON(200, gin.H{
+		"code": 0,
+		"msg":  "success",
+		"data": data,
+	})
+	return
+}
+
+// 公用-房源列表（非游客使用）
+func Public_EstateList(c *gin.Context) {
+	estParam := &(v1.PublicEstateListParamter{
+		Keyword:    c.Query("keyword"),
+		Listorder:  utils.Str2int(c.Query("listorder")),
+		ScreenJson: c.Query("screen_json"),
+		Status:     utils.Str2int(c.Query("status")),
+		PerPage:    utils.Str2int(c.Query("per_page")),
+		LastId:     utils.Str2int(c.Query("last_ld")),
+		UserId:     utils.Str2int(c.Request.Header.Get("user_id")),
+		UserType:   utils.Str2int(c.Request.Header.Get("user_type")),
+		GroupId:    utils.Str2int(c.Request.Header.Get("group_id")),
+	})
+	if estParam.UserId == 0 || estParam.GroupId == 0 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "参数错误",
+		})
+		return
+	}
+
+	// 房源列表
+	var data interface{}
+	data, errMsg := publicModel.Public_EstateList(estParam)
+	if errMsg != "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  errMsg,
+		})
+		return
+	}
+	if data == nil {
+		data = make(map[string]interface{})
+	}
+	c.JSON(200, gin.H{
+		"code": 0,
+		"msg":  "success",
+		"data": data,
+	})
+	return
+}
+
+// 公用-房源详情
+func Public_EstateDetail(c *gin.Context) {
+	estateId, _ := strconv.Atoi(c.Query("estate_id"))
+	if estateId == 0 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "参数错误",
+		})
+		return
+	}
+
+	// 房源详情
+	data, errMsg := publicModel.Public_EstateDetail(estateId)
+	if errMsg != "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  errMsg,
+		})
+		return
+	}
+	c.JSON(200, gin.H{
+		"code": 0,
+		"msg":  "success",
+		"data": data,
 	})
 	return
 }

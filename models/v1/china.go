@@ -92,7 +92,7 @@ func (this *ChinaModel) China_CustomerProgressList(keyword string, status, userI
 			return data, "获取房源发布时间失败"
 		}
 		addTime := string(row[0]["add_time"])
-		where += ` AND (r.add_time<"` + addTime + `" OR (e.add_time="` + addTime + `" AND r.id<` + strconv.Itoa(lastId) + `))`
+		where += ` AND (r.add_time<"` + addTime + `" OR (r.add_time="` + addTime + `" AND r.id<` + strconv.Itoa(lastId) + `))`
 	}
 
 	// 获取推荐客户列表
