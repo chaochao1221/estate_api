@@ -22,6 +22,7 @@ import (
 
 	simplejson "github.com/bitly/go-simplejson"
 	"github.com/ltt1987/alidayu"
+	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/text/encoding/simplifiedchinese"
 )
 
@@ -105,6 +106,23 @@ func Float64Toint(f float64) int {
 func Int642str(t int64) string {
 	str := strconv.FormatInt(int64(t), 10)
 	return str
+}
+
+func HashPassword(password string) []byte {
+	pass := []byte(password)
+	hash, _ := bcrypt.GenerateFromPassword(pass, 8)
+	if len(hash) == 60 {
+		return hash
+	}
+	return []byte("*")
+}
+
+func CheckPassword(hashedPassword, password string) bool {
+	if bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password)) == nil {
+		return true
+	} else {
+		return false
+	}
 }
 
 //随机生成数字或字母串

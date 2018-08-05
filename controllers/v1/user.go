@@ -15,11 +15,12 @@ var userModel = new(v1.UserModel)
 // 用户-路由
 func User(parentRoute *gin.RouterGroup) {
 	router := parentRoute.Group("/user")
-	router.POST("login", User_Login)                  // 2.1 用户-登录
-	router.POST("reset_password", User_ResetPassword) // 2.4 用户-重置密码
+	router.POST("/login", User_Login)                  // 2.1 用户-登录
+	router.POST("/reset_password", User_ResetPassword) // 2.4 用户-重置密码
 	router.Use(middleware.Auth())
-	router.GET("info", User_Info)                       // 2.2 用户-信息
-	router.POST("modify_password", User_ModifyPassword) // 2.3 用户-修改密码
+	router.GET("/info", User_Info)                       // 2.2 用户-信息
+	router.POST("/modify_password", User_ModifyPassword) // 2.3 用户-修改密码
+	router.DELETE("/logout", User_Logout)                // 2.5 用户-注销
 }
 
 // 用户-登录

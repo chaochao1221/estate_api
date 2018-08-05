@@ -19,32 +19,34 @@ type UserLoginReturn struct {
 }
 
 // 用户-登录
-func (this *UserModel) User_Login(email, password string) (u *UserLoginReturn, errMsg string) {
-	// 根据不同分组验证其相关邮箱密码有效性
-	sql := `SELECT u.id, u.user_type, c.group_id, c.expiry_date
-			FROM p_user u
-			LEFT JOIN p_company c ON c.id=u.company_id
-			WHERE u.email=? AND u.password=?`
-	row, err := db.Db.Query(sql, email, password)
-	if err != nil {
-		return u, "获取用户信息失败"
+func (this *UserModel) User_Login(email, password string) (data *UserLoginReturn, errMsg string) {
+	// 用户信息
+	userInfo, errMsg := this.GetUserInfo(&GetUserInfoParameter{Email: email})
+	if errMsg != "" {
+		return data, errMsg
 	}
-	if len(row) == 0 {
-		return u, "邮箱或密码错误"
+
+	// 公司信息
+	companyInfo, errMsg := this.GetCompanyInfo(userInfo.CompanyId)
+	if errMsg != "" {
+		return data, errMsg
 	}
-	groupId, _ := strconv.Atoi(string(row[0]["group_id"]))
-	if groupId == 3 {
-		expiryDate := string(row[0]["expiry_date"])
-		if time.Now().Format("2006-01-02 15:04:05") > expiryDate {
-			return u, "帐号已过期"
-		}
+
+	// 判断帐号是否过期
+	if companyInfo.GroupId == 3 && time.Now().Format("2006-01-02") > companyInfo.ExpiryDate {
+		return data, "The account has expired"
+	}
+
+	// 验证密码
+	if !utils.CheckPassword(userInfo.Password, password) {
+		return data, "Password error"
 	}
 
 	// 生成jwt
 	jwtString := CreateJwt(&CreateJwtParameter{
-		UserId:   utils.Str2int(string(row[0]["id"])),
-		UserType: utils.Str2int(string(row[0]["user_type"])),
-		GroupId:  groupId,
+		UserId:   userInfo.UserId,
+		UserType: userInfo.UserType,
+		GroupId:  companyInfo.GroupId,
 	})
 
 	// 登录踢出
@@ -115,7 +117,7 @@ func KickOut(k *KickOutParameter) {
  */
 func (this *UserModel) User_UpdatePassword(email, newPassword string) (errMsg string) {
 	sql := `UPDATE p_user SET password=? WHERE email=?`
-	_, err := db.Db.Exec(sql, newPassword, email)
+	_, err := db.Db.Exec(sql, string(utils.HashPassword(newPassword)), email)
 	if err != nil {
 		return "更新密码失败"
 	}
@@ -200,7 +202,7 @@ func (this *UserModel) GetUserInfo(userInfo *GetUserInfoParameter) (u *GetUserIn
 		return u, "获取用户信息失败"
 	}
 	if len(row) == 0 {
-		return u, "该帐号不存在"
+		return u, "The account does not exist"
 	}
 
 	// 返回数据
@@ -295,13 +297,10 @@ func (this *UserModel) User_ModifyPassword(userId int, oldPassword, newPassword 
 	if errMsg != "" {
 		return errMsg
 	}
-	if userInfo == nil {
-		return "该用户不存在"
-	}
 
 	// 验证原密码是否正确
-	if oldPassword != userInfo.Password {
-		return "原密码错误"
+	if !utils.CheckPassword(userInfo.Password, oldPassword) {
+		return "Original password error"
 	}
 
 	// 更新密码
@@ -319,9 +318,6 @@ func (this *UserModel) User_ResetPassword(email string) (errMsg string) {
 	if errMsg != "" {
 		return errMsg
 	}
-	if userInfo == nil {
-		return "该帐号不存在"
-	}
 
 	// 获取公司信息
 	companyInfo, errMsg := this.GetCompanyInfo(userInfo.CompanyId)
@@ -329,8 +325,9 @@ func (this *UserModel) User_ResetPassword(email string) (errMsg string) {
 		return errMsg
 	}
 
-	if companyInfo.GroupId == 3 && companyInfo.ExpiryDate < time.Now().Format("2006-01-02 15:04:05") {
-		return "该帐号已过期"
+	// 判断帐号是否过期
+	if companyInfo.GroupId == 3 && companyInfo.ExpiryDate < time.Now().Format("2006-01-02") {
+		return "The account has expired"
 	}
 
 	// 在redis里重置密码，有效期24小时
