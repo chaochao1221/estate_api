@@ -6,6 +6,7 @@ import (
 	"estate/utils"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/golibs/uuid"
 )
@@ -18,15 +19,15 @@ var (
 )
 
 type PublicCompanyDetailReturn struct {
-	GroupId          int    `json:"group_id"`
-	UserId           int    `json:"user_id"`
-	UserType         int    `json:"user_type"`
-	CompanyName      string `json:"company_name"`
-	CRecommendNumber int    `json:"c_recommend_number"`
-	CDealNumber      int    `json:"c_deal_number"`
-	EReleaseNumber   int    `json:"e_release_number"`
-	EDealNumber      int    `json:"e_deal_number"`
-	ExpiryDate       string `json:"expiry_date"`
+	GroupId         int    `json:"group_id"`
+	UserId          int    `json:"user_id"`
+	UserType        int    `json:"user_type"`
+	CompanyName     string `json:"company_name"`
+	RecommendNumber int    `json:"recommend_number"`
+	ReleaseNumber   int    `json:"release_number"`
+	ButtNumber      int    `json:"butt_number"`
+	DealNumber      int    `json:"deal_number"`
+	ExpiryDate      string `json:"expiry_date"`
 }
 
 // 公用-公司详情
@@ -44,20 +45,20 @@ func (this *PublicModel) Public_CompanyDetail(userId int) (data *PublicCompanyDe
 	}
 
 	return &PublicCompanyDetailReturn{
-		GroupId:          companyInfo.GroupId,
-		UserId:           userId,
-		UserType:         userInfo.UserType,
-		CompanyName:      companyInfo.Name,
-		CRecommendNumber: companyInfo.CRecommendNumber,
-		CDealNumber:      companyInfo.CDealNumber,
-		EReleaseNumber:   companyInfo.EReleaseNumber,
-		EDealNumber:      companyInfo.EDealNumber,
-		ExpiryDate:       companyInfo.ExpiryDate,
+		GroupId:         companyInfo.GroupId,
+		UserId:          userId,
+		UserType:        userInfo.UserType,
+		CompanyName:     companyInfo.Name,
+		RecommendNumber: companyInfo.RecommendNumber,
+		ReleaseNumber:   companyInfo.ReleaseNumber,
+		ButtNumber:      companyInfo.ButtNumber,
+		DealNumber:      companyInfo.DealNumber,
+		ExpiryDate:      companyInfo.ExpiryDate,
 	}, ""
 }
 
 type PublicSalesManageListReturn struct {
-	List []SalesManageList `json:"SalesManageList"`
+	List []SalesManageList `json:"list"`
 }
 
 type SalesManageList struct {
@@ -65,6 +66,7 @@ type SalesManageList struct {
 	Name    string `json:"name"`
 	Email   string `json:"email"`
 	AddTime string `json:"add_time"`
+	Mark    int    `json:"mark"`
 }
 
 // 公用-销售管理列表
@@ -76,15 +78,25 @@ func (this *PublicModel) Public_SalesManageList(userId int) (data *PublicSalesMa
 	if errMsg != "" {
 		return data, errMsg
 	}
-	if userInfo == nil {
-		return data, "该用户不存在"
+
+	// 获取已经分配的销售
+	sql := `SELECT DISTINCT user_id FROM base_distribution`
+	rows, err := db.Db.Query(sql)
+	if err != nil {
+		return data, "获取已经分配的销售失败"
+	}
+	userIdMap := make(map[int]int)
+	if len(rows) > 0 {
+		for _, value := range rows {
+			userIdMap[utils.Str2int(string(value["user_id"]))] = 1
+		}
 	}
 
 	// 获取公司员工列表
-	sql := `SELECT id, name, email, add_time
-			FROM p_user
-			WHERE company_id=? AND user_type=0`
-	rows, err := db.Db.Query(sql, userInfo.CompanyId)
+	sql = `SELECT id, name, email, add_time
+		   FROM p_user
+		   WHERE company_id=? AND user_type=0`
+	rows, err = db.Db.Query(sql, userInfo.CompanyId)
 	if err != nil {
 		return data, "获取员工列表失败"
 	}
@@ -96,10 +108,23 @@ func (this *PublicModel) Public_SalesManageList(userId int) (data *PublicSalesMa
 			UserId:  utils.Str2int(string(value["id"])),
 			Name:    string(value["name"]),
 			Email:   string(value["email"]),
-			AddTime: string(value["add_time"]),
+			AddTime: DateFormat(string(value["add_time"]), "2006/01/02"),
+			Mark:    userIdMap[utils.Str2int(string(value["id"]))],
 		})
 	}
 	return
+}
+
+/*
+* @Title DateFormat
+* @Description 日期格式化
+* @Parameter add_time string
+* @Parameter format string
+* @Return data string
+ */
+func DateFormat(add_time, format string) (data string) {
+	t, _ := time.ParseInLocation("2006-01-02 15:04:05", add_time, time.Local)
+	return t.Format(format)
 }
 
 type PublicSalesManageDetailReturn struct {
@@ -128,27 +153,35 @@ func (this *PublicModel) Public_SalesManageDetail(userId int) (data *PublicSales
 
 // 公用-销售管理添加/编辑
 func (this *PublicModel) Public_SalesManageAdd(leaderUserId, userId int, name, email, password string) (errMsg string) {
+	// 判断该邮箱是否存在
+	sql := `SELECT id FROM p_user WHERE email=? AND id<>?`
+	row, err := db.Db.Query(sql, email, userId)
+	if err != nil {
+		return "获取邮箱失败"
+	}
+	if len(row) > 0 {
+		return "The email has already existed"
+	}
+
 	// 用户信息
 	userInfo, errMsg := userModel.GetUserInfo(&GetUserInfoParameter{UserId: leaderUserId})
 	if errMsg != "" {
 		return errMsg
 	}
-	if userInfo == nil {
-		return "该用户不存咋"
-	}
 
 	// 根据userId是否为0来判断是添加还是编辑
 	if userId == 0 { // 添加
-		sql := `INSERT INTO p_user(company_id, email, password, name) VALUES(?,?,?,?)`
-		_, err := db.Db.Exec(sql, userInfo.CompanyId, email, password, name)
+		// 添加
+		sql = `INSERT INTO p_user(company_id, email, password, name) VALUES(?,?,?,?)`
+		_, err = db.Db.Exec(sql, userInfo.CompanyId, email, password, name)
 		if err != nil {
 			return "添加用户失败"
 		}
 	} else { // 编辑
-		sql := `UPDATE p_user
-				SET email=?, password=?, name=?
-				WHERE id=?`
-		_, err := db.Db.Exec(sql, email, password, name, userId)
+		sql = `UPDATE p_user
+			   SET email=?, password=?, name=?
+			   WHERE id=?`
+		_, err = db.Db.Exec(sql, email, password, name, userId)
 		if err != nil {
 			return "编辑用户失败"
 		}
@@ -184,6 +217,17 @@ func (this *PublicModel) Public_SalesManageDel(leaderUserId, groupId, userId int
 		if err != nil {
 			transaction.Rollback()
 			return "更新本部发布者失败"
+		}
+
+		// 更新是否分配状态
+		sql = `UPDATE p_recommend r
+			   LEFT JOIN base_distribution d ON d.recommend_id=r.id
+			   SET r.is_distribution=0
+			   WHERE d.user_id=?`
+		_, err = transaction.Exec(sql, userId)
+		if err != nil {
+			transaction.Rollback()
+			return "更新分配状态失败"
 		}
 
 		// 删除分配关系

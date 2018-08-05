@@ -220,15 +220,15 @@ func (this *UserModel) GetUserInfo(userInfo *GetUserInfoParameter) (u *GetUserIn
 }
 
 type GetCompanyInfoReturn struct {
-	GroupId          int
-	RegionId         int
-	Name             string
-	Adress           string
-	CRecommendNumber int
-	CDealNumber      int
-	EReleaseNumber   int
-	EDealNumber      int
-	ExpiryDate       string
+	GroupId         int
+	RegionId        int
+	Name            string
+	Adress          string
+	RecommendNumber int // 推荐客户数
+	ReleaseNumber   int // 发布房源数
+	ButtNumber      int // 对接客户数
+	DealNumber      int // 成交客户/房源数
+	ExpiryDate      string
 }
 
 /*
@@ -239,7 +239,7 @@ type GetCompanyInfoReturn struct {
 * @Return errMsg string
  */
 func (this *UserModel) GetCompanyInfo(companyId int) (data *GetCompanyInfoReturn, errMsg string) {
-	sql := `SELECT group_id, region_id, name, adress, c_recommend_number, c_deal_number, e_release_number, e_deal_number, expiry_date
+	sql := `SELECT group_id, region_id, name, adress, recommend_number, release_number, butt_number, deal_number, expiry_date
 			FROM p_company
 			WHERE id=?`
 	row, err := db.Db.Query(sql, companyId)
@@ -247,15 +247,15 @@ func (this *UserModel) GetCompanyInfo(companyId int) (data *GetCompanyInfoReturn
 		return data, "获取公司信息失败"
 	}
 	return &GetCompanyInfoReturn{
-		GroupId:          utils.Str2int(string(row[0]["group_id"])),
-		RegionId:         utils.Str2int(string(row[0]["region_id"])),
-		Name:             string(row[0]["name"]),
-		Adress:           string(row[0]["adress"]),
-		CRecommendNumber: utils.Str2int(string(row[0]["c_recommend_number"])),
-		CDealNumber:      utils.Str2int(string(row[0]["c_deal_number"])),
-		EReleaseNumber:   utils.Str2int(string(row[0]["e_release_number"])),
-		EDealNumber:      utils.Str2int(string(row[0]["e_deal_number"])),
-		ExpiryDate:       string(row[0]["expiry_date"]),
+		GroupId:         utils.Str2int(string(row[0]["group_id"])),
+		RegionId:        utils.Str2int(string(row[0]["region_id"])),
+		Name:            string(row[0]["name"]),
+		Adress:          string(row[0]["adress"]),
+		RecommendNumber: utils.Str2int(string(row[0]["recommend_number"])),
+		ReleaseNumber:   utils.Str2int(string(row[0]["release_number"])),
+		ButtNumber:      utils.Str2int(string(row[0]["butt_number"])),
+		DealNumber:      utils.Str2int(string(row[0]["deal_number"])),
+		ExpiryDate:      string(row[0]["expiry_date"]),
 	}, ""
 }
 

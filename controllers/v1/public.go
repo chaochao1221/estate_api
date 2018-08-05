@@ -79,7 +79,6 @@ func Public_SalesManageList(c *gin.Context) {
 	}
 
 	// 销售列表
-	var data interface{}
 	data, errMsg := publicModel.Public_SalesManageList(userId)
 	if errMsg != "" {
 		c.JSON(400, gin.H{
@@ -89,7 +88,12 @@ func Public_SalesManageList(c *gin.Context) {
 		return
 	}
 	if data == nil {
-		data = make(map[string]interface{})
+		c.JSON(200, gin.H{
+			"code": 0,
+			"msg":  "success",
+			"data": make(map[string]interface{}),
+		})
+		return
 	}
 	c.JSON(200, gin.H{
 		"code": 0,
