@@ -403,7 +403,6 @@ func Public_EstateManageRemoveShelves(c *gin.Context) {
 // 公用-日本地区列表
 func Public_JapanRegionList(c *gin.Context) {
 	// 日本地区列表
-	var data interface{}
 	data, errMsg := publicModel.Public_JapanRegionList()
 	if errMsg != "" {
 		c.JSON(400, gin.H{
@@ -413,7 +412,12 @@ func Public_JapanRegionList(c *gin.Context) {
 		return
 	}
 	if data == nil {
-		data = make(map[string]interface{})
+		c.JSON(200, gin.H{
+			"code": 0,
+			"msg":  "success",
+			"data": make(map[string]interface{}),
+		})
+		return
 	}
 	c.JSON(200, gin.H{
 		"code": 0,
@@ -445,7 +449,6 @@ func Public_EstateList(c *gin.Context) {
 	}
 
 	// 房源列表
-	var data interface{}
 	data, errMsg := publicModel.Public_EstateList(estParam)
 	if errMsg != "" {
 		c.JSON(400, gin.H{
@@ -455,7 +458,12 @@ func Public_EstateList(c *gin.Context) {
 		return
 	}
 	if data == nil {
-		data = make(map[string]interface{})
+		c.JSON(200, gin.H{
+			"code": 0,
+			"msg":  "success",
+			"data": make(map[string]interface{}),
+		})
+		return
 	}
 	c.JSON(200, gin.H{
 		"code": 0,

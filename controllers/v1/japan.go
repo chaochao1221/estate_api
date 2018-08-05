@@ -41,7 +41,6 @@ func Japan_EstateProgress(c *gin.Context) {
 	}
 
 	// 房源进展
-	var data interface{}
 	data, errMsg := japanModel.Japan_EstateProgress(status, perPage, lastId, userId, userType)
 	if errMsg != "" {
 		c.JSON(400, gin.H{
@@ -51,7 +50,12 @@ func Japan_EstateProgress(c *gin.Context) {
 		return
 	}
 	if data == nil {
-		data = make(map[string]interface{})
+		c.JSON(200, gin.H{
+			"code": 0,
+			"msg":  "success",
+			"data": make(map[string]interface{}),
+		})
+		return
 	}
 	c.JSON(200, gin.H{
 		"code": 0,

@@ -28,7 +28,6 @@ func Tourists_EstateList(c *gin.Context) {
 	})
 
 	// 房源列表
-	var data interface{}
 	data, errMsg := touristsModel.Tourists_EstateList(estParam)
 	if errMsg != "" {
 		c.JSON(400, gin.H{
@@ -38,7 +37,12 @@ func Tourists_EstateList(c *gin.Context) {
 		return
 	}
 	if data == nil {
-		data = make(map[string]interface{})
+		c.JSON(200, gin.H{
+			"code": 0,
+			"msg":  "success",
+			"data": make(map[string]interface{}),
+		})
+		return
 	}
 	c.JSON(200, gin.H{
 		"code": 0,

@@ -47,7 +47,6 @@ func Base(parentRoute *gin.RouterGroup) {
 
 // 本部中介-日期列表
 func Base_DateList(c *gin.Context) {
-	var data interface{}
 	data, errMsg := baseModel.Base_DateList()
 	if errMsg != "" {
 		c.JSON(400, gin.H{
@@ -57,7 +56,12 @@ func Base_DateList(c *gin.Context) {
 		return
 	}
 	if data == nil {
-		data = make(map[string]interface{})
+		c.JSON(200, gin.H{
+			"code": 0,
+			"msg":  "success",
+			"data": make(map[string]interface{}),
+		})
+		return
 	}
 	c.JSON(200, gin.H{
 		"code": 0,
@@ -89,7 +93,6 @@ func Base_SalesAchievement(c *gin.Context) {
 	}
 
 	// 销售业绩列表
-	var data interface{}
 	data, errMsg := baseModel.Base_SalesAchievement(addTime, perPage, lastId)
 	if errMsg != "" {
 		c.JSON(400, gin.H{
@@ -99,7 +102,12 @@ func Base_SalesAchievement(c *gin.Context) {
 		return
 	}
 	if data == nil {
-		data = make(map[string]interface{})
+		c.JSON(200, gin.H{
+			"code": 0,
+			"msg":  "success",
+			"data": make(map[string]interface{}),
+		})
+		return
 	}
 	c.JSON(200, gin.H{
 		"code": 0,
@@ -132,7 +140,6 @@ func Base_SalesProfitList(c *gin.Context) {
 	}
 
 	// 中介费用统计列表
-	var data interface{}
 	data, errMsg := baseModel.Base_SalesProfitList(addTime, perPage, lastId)
 	if errMsg != "" {
 		c.JSON(400, gin.H{
@@ -142,7 +149,12 @@ func Base_SalesProfitList(c *gin.Context) {
 		return
 	}
 	if data == nil {
-		data = make(map[string]interface{})
+		c.JSON(200, gin.H{
+			"code": 0,
+			"msg":  "success",
+			"data": make(map[string]interface{}),
+		})
+		return
 	}
 	c.JSON(200, gin.H{
 		"code": 0,
@@ -285,7 +297,6 @@ func Base_WaitDistributionList(c *gin.Context) {
 	}
 
 	// 待分配客户列表
-	var data interface{}
 	data, errMsg := baseModel.Base_WaitDistributionList(perPage, lastId)
 	if errMsg != "" {
 		c.JSON(400, gin.H{
@@ -295,7 +306,12 @@ func Base_WaitDistributionList(c *gin.Context) {
 		return
 	}
 	if data == nil {
-		data = make(map[string]interface{})
+		c.JSON(200, gin.H{
+			"code": 0,
+			"msg":  "success",
+			"data": make(map[string]interface{}),
+		})
+		return
 	}
 	c.JSON(200, gin.H{
 		"code": 0,
@@ -402,7 +418,6 @@ func Base_JapanManageList(c *gin.Context) {
 	}
 
 	// 列表
-	var data interface{}
 	data, errMsg := baseModel.Base_JapanManageList(keyword, status, perPage, lastId)
 	if errMsg != "" {
 		c.JSON(400, gin.H{
@@ -412,7 +427,12 @@ func Base_JapanManageList(c *gin.Context) {
 		return
 	}
 	if data == nil {
-		data = make(map[string]interface{})
+		c.JSON(200, gin.H{
+			"code": 0,
+			"msg":  "success",
+			"data": make(map[string]interface{}),
+		})
+		return
 	}
 	c.JSON(200, gin.H{
 		"code": 0,
@@ -561,7 +581,6 @@ func Base_ChinaManageRegionList(c *gin.Context) {
 	}
 
 	// 列表
-	var data interface{}
 	data, errMsg := baseModel.Base_ChinaManageRegionList()
 	if errMsg != "" {
 		c.JSON(400, gin.H{
@@ -571,7 +590,12 @@ func Base_ChinaManageRegionList(c *gin.Context) {
 		return
 	}
 	if data == nil {
-		data = make(map[string]interface{})
+		c.JSON(200, gin.H{
+			"code": 0,
+			"msg":  "success",
+			"data": make(map[string]interface{}),
+		})
+		return
 	}
 	c.JSON(200, gin.H{
 		"code": 0,
@@ -605,7 +629,6 @@ func Base_ChinaManageList(c *gin.Context) {
 	}
 
 	// 列表
-	var data interface{}
 	data, errMsg := baseModel.Base_ChinaManageList(keyword, regionId, perPage, lastId)
 	if errMsg != "" {
 		c.JSON(400, gin.H{
@@ -615,7 +638,12 @@ func Base_ChinaManageList(c *gin.Context) {
 		return
 	}
 	if data == nil {
-		data = make(map[string]interface{})
+		c.JSON(200, gin.H{
+			"code": 0,
+			"msg":  "success",
+			"data": make(map[string]interface{}),
+		})
+		return
 	}
 	c.JSON(200, gin.H{
 		"code": 0,
@@ -763,7 +791,6 @@ func Base_CustomerManageSourceList(c *gin.Context) {
 	}
 
 	// 列表
-	var data interface{}
 	data, errMsg := baseModel.Base_CustomerManageSourceList()
 	if errMsg != "" {
 		c.JSON(400, gin.H{
@@ -773,7 +800,12 @@ func Base_CustomerManageSourceList(c *gin.Context) {
 		return
 	}
 	if data == nil {
-		data = make(map[string]interface{})
+		c.JSON(200, gin.H{
+			"code": 0,
+			"msg":  "success",
+			"data": make(map[string]interface{}),
+		})
+		return
 	}
 	c.JSON(200, gin.H{
 		"code": 0,
@@ -810,7 +842,6 @@ func Base_CustomerManageList(c *gin.Context) {
 	}
 
 	// 列表
-	var data interface{}
 	data, errMsg := baseModel.Base_CustomerManageList(cusParam)
 	if errMsg != "" {
 		c.JSON(400, gin.H{
@@ -820,7 +851,12 @@ func Base_CustomerManageList(c *gin.Context) {
 		return
 	}
 	if data == nil {
-		data = make(map[string]interface{})
+		c.JSON(200, gin.H{
+			"code": 0,
+			"msg":  "success",
+			"data": make(map[string]interface{}),
+		})
+		return
 	}
 	c.JSON(200, gin.H{
 		"code": 0,
