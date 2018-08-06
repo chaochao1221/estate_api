@@ -173,15 +173,19 @@ func (this *PublicModel) Public_SalesManageAdd(leaderUserId, userId int, name, e
 	if userId == 0 { // 添加
 		// 添加
 		sql = `INSERT INTO p_user(company_id, email, password, name) VALUES(?,?,?,?)`
-		_, err = db.Db.Exec(sql, userInfo.CompanyId, email, password, name)
+		_, err = db.Db.Exec(sql, userInfo.CompanyId, email, string(utils.HashPassword(password)), name)
 		if err != nil {
 			return "添加用户失败"
 		}
 	} else { // 编辑
+		var passwordSql string
+		if password != "" {
+			passwordSql = ` ,password="` + string(utils.HashPassword(password)) + `"`
+		}
 		sql = `UPDATE p_user
-			   SET email=?, password=?, name=?
-			   WHERE id=?`
-		_, err = db.Db.Exec(sql, email, password, name, userId)
+			   SET email=?, name=? ` + passwordSql +
+			`WHERE id=?`
+		_, err = db.Db.Exec(sql, email, name, userId)
 		if err != nil {
 			return "编辑用户失败"
 		}

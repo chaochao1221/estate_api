@@ -613,10 +613,13 @@ func (this *BaseModel) Base_JapanManageDetail(id int) (data *BaseJapanManageDeta
 	sql := `SELECT c.id, c.name companyName, c.adress, c.expiry_date, u.name userName, u.telephone, u.fax, u.email
 			FROM p_company c
 			LEFT JOIN p_user u ON u.company_id=c.id
-			WHERE c.id=? AND u.user_type=0`
+			WHERE c.id=? AND u.user_type=0 AND c.group_id=3`
 	row, err := db.Db.Query(sql, id)
 	if err != nil {
 		return nil, "获取详情失败"
+	}
+	if len(row) == 0 {
+		return nil, ""
 	}
 	return &BaseJapanManageDetailReturn{
 		Id:          utils.Str2int(string(row[0]["id"])),
@@ -651,7 +654,7 @@ func (this *BaseModel) Base_JapanManageAdd(addParam *BaseJapanManageDetailReturn
 
 		// 更新公司主管
 		sql = `INSERT INTO p_user(company_id, user_type, email, password, name, telephone, fax) VALUES(?,?,?,?,?,?,?)`
-		_, err = transaction.Exec(sql, int(lastId), 1, addParam.Email, addParam.Password, addParam.UserName, addParam.Telephone, addParam.Fax)
+		_, err = transaction.Exec(sql, int(lastId), 1, addParam.Email, string(utils.HashPassword(addParam.Password)), addParam.UserName, addParam.Telephone, addParam.Fax)
 		if err != nil {
 			transaction.Rollback()
 			return "更新公司主管失败"
@@ -668,10 +671,14 @@ func (this *BaseModel) Base_JapanManageAdd(addParam *BaseJapanManageDetailReturn
 		}
 
 		// 更新公司主管
+		var passwordSql string
+		if addParam.Password != "" {
+			passwordSql = ` ,password="` + string(utils.HashPassword(addParam.Password)) + `"`
+		}
 		sql = `UPDATE p_user
-			   SET email=?, password, name=?, telephone=?, fax=?
-			   WHERE company_id=? AND user_type=1`
-		_, err = transaction.Exec(sql, addParam.Email, addParam.Password, addParam.UserName, addParam.Telephone, addParam.Fax, addParam.Id)
+			   SET email=?, name=?, telephone=?, fax=? ` + passwordSql +
+			`WHERE company_id=? AND user_type=1`
+		_, err = transaction.Exec(sql, addParam.Email, addParam.UserName, addParam.Telephone, addParam.Fax, addParam.Id)
 		if err != nil {
 			transaction.Rollback()
 			return "更新公司主管失败."
@@ -880,10 +887,13 @@ func (this *BaseModel) Base_ChinaManageDetail(id int) (data *BaseChinaManageDeta
 			FROM p_company c
 			LEFT JOIN p_region r ON r.id=c.region_id
 			LEFT JOIN p_user u ON u.company_id=c.id
-			WHERE c.id=? AND u.user_type=0`
+			WHERE c.id=? AND u.user_type=0 AND c.group_id=2`
 	row, err := db.Db.Query(sql, id)
 	if err != nil {
 		return nil, "获取详情失败"
+	}
+	if len(row) == 0 {
+		return nil, ""
 	}
 	return &BaseChinaManageDetailReturn{
 		Id:          utils.Str2int(string(row[0]["id"])),

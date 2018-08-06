@@ -471,6 +471,14 @@ func Base_JapanManageDetail(c *gin.Context) {
 		})
 		return
 	}
+	if data == nil {
+		c.JSON(200, gin.H{
+			"code": 0,
+			"msg":  "success",
+			"data": make(map[string]interface{}),
+		})
+		return
+	}
 	c.JSON(200, gin.H{
 		"code": 0,
 		"msg":  "success",
@@ -679,6 +687,14 @@ func Base_ChinaManageDetail(c *gin.Context) {
 		c.JSON(400, gin.H{
 			"code": 1010,
 			"msg":  errMsg,
+		})
+		return
+	}
+	if data == nil {
+		c.JSON(200, gin.H{
+			"code": 0,
+			"msg":  "success",
+			"data": make(map[string]interface{}),
 		})
 		return
 	}
