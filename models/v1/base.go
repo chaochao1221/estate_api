@@ -599,6 +599,7 @@ type BaseJapanManageDetailReturn struct {
 	Id          int    `json:"id"`
 	CompanyName string `json:"company_name"`
 	Address     string `json:"address"`
+	UserId      int    `json:"user_id"`
 	UserName    string `json:"user_name"`
 	Telephone   string `json:"telephone"`
 	Fax         string `json:"fax"`
@@ -610,7 +611,7 @@ type BaseJapanManageDetailReturn struct {
 // 本部中介-日本中介管理详情
 func (this *BaseModel) Base_JapanManageDetail(id int) (data *BaseJapanManageDetailReturn, errMsg string) {
 	// 详情
-	sql := `SELECT c.id, c.name companyName, c.adress, c.expiry_date, u.name userName, u.telephone, u.fax, u.email
+	sql := `SELECT c.id, c.name companyName, c.adress, c.expiry_date, u.id userId, u.name userName, u.telephone, u.fax, u.email
 			FROM p_company c
 			LEFT JOIN p_user u ON u.company_id=c.id
 			WHERE c.id=? AND u.user_type=0 AND c.group_id=3`
@@ -625,6 +626,7 @@ func (this *BaseModel) Base_JapanManageDetail(id int) (data *BaseJapanManageDeta
 		Id:          utils.Str2int(string(row[0]["id"])),
 		CompanyName: string(row[0]["companyName"]),
 		Address:     string(row[0]["adress"]),
+		UserId:      utils.Str2int(string(row[0]["user_id"])),
 		UserName:    string(row[0]["userName"]),
 		Telephone:   string(row[0]["telephone"]),
 		Fax:         string(row[0]["fax"]),
@@ -635,6 +637,12 @@ func (this *BaseModel) Base_JapanManageDetail(id int) (data *BaseJapanManageDeta
 
 // 本部中介-日本中介管理添加/编辑
 func (this *BaseModel) Base_JapanManageAdd(addParam *BaseJapanManageDetailReturn) (errMsg string) {
+	// 判断除自己以外是否还存在该邮箱
+	_, errMsg = publicModel.ExistEmail(addParam.Email, addParam.UserId)
+	if errMsg != "" {
+		return
+	}
+
 	// 开启事务
 	transaction := db.Db.NewSession()
 	if err := transaction.Begin(); err != nil {
@@ -714,7 +722,7 @@ func (this *BaseModel) Base_JapanManageDel(id int) (errMsg string) {
 	}
 
 	// 公司及员工硬删除
-	sql = `DELETE FROM c, u
+	sql = `DELETE c, u
 		   FROM p_company c
 		   LEFT JOIN p_user u ON u.company_id=c.id
 		   WHERE c.id=?`
@@ -873,6 +881,7 @@ type BaseChinaManageDetailReturn struct {
 	RegionName  string `json:"region_name"`
 	CompanyName string `json:"company_name"`
 	Address     string `json:"address"`
+	UserId      int    `json:"user_id"`
 	UserName    string `json:"user_name"`
 	Telephone   string `json:"telephone"`
 	Fax         string `json:"fax"`
@@ -883,7 +892,7 @@ type BaseChinaManageDetailReturn struct {
 // 本部中介-中国中介管理详情
 func (this *BaseModel) Base_ChinaManageDetail(id int) (data *BaseChinaManageDetailReturn, errMsg string) {
 	// 详情
-	sql := `SELECT c.id, c.region_id, r.name regionName, c.name companyName, c.adress, u.name userName, u.telephone, u.fax, u.email
+	sql := `SELECT c.id, c.region_id, r.name regionName, c.name companyName, c.adress, u.id userId, u.name userName, u.telephone, u.fax, u.email
 			FROM p_company c
 			LEFT JOIN p_region r ON r.id=c.region_id
 			LEFT JOIN p_user u ON u.company_id=c.id
@@ -901,6 +910,7 @@ func (this *BaseModel) Base_ChinaManageDetail(id int) (data *BaseChinaManageDeta
 		RegionName:  string(row[0]["regionName"]),
 		CompanyName: string(row[0]["companyName"]),
 		Address:     string(row[0]["adress"]),
+		UserId:      utils.Str2int(string(row[0]["user_id"])),
 		UserName:    string(row[0]["userName"]),
 		Telephone:   string(row[0]["telephone"]),
 		Fax:         string(row[0]["fax"]),
@@ -908,8 +918,14 @@ func (this *BaseModel) Base_ChinaManageDetail(id int) (data *BaseChinaManageDeta
 	}, ""
 }
 
-// 本部中介-日本中介管理添加/编辑
+// 本部中介-中国中介管理添加/编辑
 func (this *BaseModel) Base_ChinaManageAdd(addParam *BaseChinaManageDetailReturn) (errMsg string) {
+	// 判断除自己以外是否还存在该邮箱
+	_, errMsg = publicModel.ExistEmail(addParam.Email, addParam.UserId)
+	if errMsg != "" {
+		return
+	}
+
 	// 开启事务
 	transaction := db.Db.NewSession()
 	if err := transaction.Begin(); err != nil {
@@ -929,7 +945,7 @@ func (this *BaseModel) Base_ChinaManageAdd(addParam *BaseChinaManageDetailReturn
 
 		// 更新公司主管
 		sql = `INSERT INTO p_user(company_id, user_type, email, password, name, telephone, fax) VALUES(?,?,?,?,?,?,?)`
-		_, err = transaction.Exec(sql, int(lastId), 1, addParam.Email, addParam.Password, addParam.UserName, addParam.Telephone, addParam.Fax)
+		_, err = transaction.Exec(sql, int(lastId), 1, addParam.Email, string(utils.HashPassword(addParam.Password)), addParam.UserName, addParam.Telephone, addParam.Fax)
 		if err != nil {
 			transaction.Rollback()
 			return "更新公司主管失败"
@@ -946,10 +962,14 @@ func (this *BaseModel) Base_ChinaManageAdd(addParam *BaseChinaManageDetailReturn
 		}
 
 		// 更新公司主管
+		var passwordSql string
+		if addParam.Password != "" {
+			passwordSql = ` ,password="` + string(utils.HashPassword(addParam.Password)) + `"`
+		}
 		sql = `UPDATE p_user
-			   SET email=?, password, name=?, telephone=?, fax=?
-			   WHERE company_id=? AND user_type=1`
-		_, err = transaction.Exec(sql, addParam.Email, addParam.Password, addParam.UserName, addParam.Telephone, addParam.Fax, addParam.Id)
+			   SET email=?, name=?, telephone=?, fax=? ` + passwordSql +
+			`WHERE company_id=? AND user_type=1`
+		_, err = transaction.Exec(sql, addParam.Email, addParam.UserName, addParam.Telephone, addParam.Fax, addParam.Id)
 		if err != nil {
 			transaction.Rollback()
 			return "更新公司主管失败."
@@ -985,7 +1005,7 @@ func (this *BaseModel) Base_ChinaManageDel(id int) (errMsg string) {
 	}
 
 	// 公司及员工硬删除
-	sql = `DELETE FROM c, u
+	sql = `DELETE c, u
 		   FROM p_company c
 		   LEFT JOIN p_user u ON u.company_id=c.id
 		   WHERE c.id=?`

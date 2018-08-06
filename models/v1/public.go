@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"estate/db"
 	"estate/utils"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -153,14 +154,10 @@ func (this *PublicModel) Public_SalesManageDetail(userId int) (data *PublicSales
 
 // 公用-销售管理添加/编辑
 func (this *PublicModel) Public_SalesManageAdd(leaderUserId, userId int, name, email, password string) (errMsg string) {
-	// 判断该邮箱是否存在
-	sql := `SELECT id FROM p_user WHERE email=? AND id<>?`
-	row, err := db.Db.Query(sql, email, userId)
-	if err != nil {
-		return "获取邮箱失败"
-	}
-	if len(row) > 0 {
-		return "The email has already existed"
+	// 判断除自己以外是否还存在该邮箱
+	_, errMsg = this.ExistEmail(email, userId)
+	if errMsg != "" {
+		return
 	}
 
 	// 用户信息
@@ -172,8 +169,8 @@ func (this *PublicModel) Public_SalesManageAdd(leaderUserId, userId int, name, e
 	// 根据userId是否为0来判断是添加还是编辑
 	if userId == 0 { // 添加
 		// 添加
-		sql = `INSERT INTO p_user(company_id, email, password, name) VALUES(?,?,?,?)`
-		_, err = db.Db.Exec(sql, userInfo.CompanyId, email, string(utils.HashPassword(password)), name)
+		sql := `INSERT INTO p_user(company_id, email, password, name) VALUES(?,?,?,?)`
+		_, err := db.Db.Exec(sql, userInfo.CompanyId, email, string(utils.HashPassword(password)), name)
 		if err != nil {
 			return "添加用户失败"
 		}
@@ -182,16 +179,37 @@ func (this *PublicModel) Public_SalesManageAdd(leaderUserId, userId int, name, e
 		if password != "" {
 			passwordSql = ` ,password="` + string(utils.HashPassword(password)) + `"`
 		}
-		sql = `UPDATE p_user
+		sql := `UPDATE p_user
 			   SET email=?, name=? ` + passwordSql +
 			`WHERE id=?`
-		_, err = db.Db.Exec(sql, email, name, userId)
+		_, err := db.Db.Exec(sql, email, name, userId)
 		if err != nil {
 			return "编辑用户失败"
 		}
 	}
 
 	return
+}
+
+/*
+* @Title ExistEmail
+* @Description 判断除自己以外是否还存在该邮箱
+* @Parameter email string
+* @Parameter userId int
+* @Return data bool
+* @Return errMsg string
+ */
+func (this *PublicModel) ExistEmail(email string, userId int) (data bool, errMsg string) {
+	fmt.Println(email, userId)
+	sql := `SELECT id FROM p_user WHERE email=? AND id<>?`
+	row, err := db.Db.Query(sql, email, userId)
+	if err != nil {
+		return false, "获取邮箱失败"
+	}
+	if len(row) > 0 {
+		return false, "The email has already existed"
+	}
+	return true, ""
 }
 
 // 公用-销售管理删除

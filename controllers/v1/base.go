@@ -493,6 +493,7 @@ func Base_JapanManageAdd(c *gin.Context) {
 		Id:          utils.Str2int(c.PostForm("id")),
 		CompanyName: c.PostForm("company_name"),
 		Address:     c.PostForm("address"),
+		UserId:      utils.Str2int(c.PostForm("user_id")),
 		UserName:    c.PostForm("user_name"),
 		Telephone:   c.PostForm("telephone"),
 		Fax:         c.PostForm("fax"),
@@ -535,7 +536,7 @@ func Base_JapanManageAdd(c *gin.Context) {
 
 // 本部中介-日本中介管理删除
 func Base_JapanManageDel(c *gin.Context) {
-	id, _ := strconv.Atoi(c.PostForm("id"))
+	id, _ := strconv.Atoi(c.Params.ByName("id"))
 	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
 	userType, _ := strconv.Atoi(c.Request.Header.Get("user_type"))
 	if id == 0 || groupId == 0 {
@@ -713,6 +714,7 @@ func Base_ChinaManageAdd(c *gin.Context) {
 		RegionId:    utils.Str2int(c.PostForm("region_id")),
 		CompanyName: c.PostForm("company_name"),
 		Address:     c.PostForm("address"),
+		UserId:      utils.Str2int(c.PostForm("user_id")),
 		UserName:    c.PostForm("user_name"),
 		Telephone:   c.PostForm("telephone"),
 		Fax:         c.PostForm("fax"),
@@ -754,7 +756,7 @@ func Base_ChinaManageAdd(c *gin.Context) {
 
 // 本部中介-中国中介管理删除
 func Base_ChinaManageDel(c *gin.Context) {
-	id, _ := strconv.Atoi(c.PostForm("id"))
+	id, _ := strconv.Atoi(c.Params.ByName("id"))
 	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
 	userType, _ := strconv.Atoi(c.Request.Header.Get("user_type"))
 	if id == 0 || groupId == 0 {
