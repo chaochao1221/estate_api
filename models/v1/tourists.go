@@ -217,7 +217,7 @@ func (this *TouristsModel) Tourists_EstateList(estParam *PublicEstateListParamte
 				Huxing:      string(value["huxing"]),
 				HuxingAlias: GetHuxingAlias(string(value["huxing"])),
 				MeasureArea: string(value["measure_area"]),
-				RegionName:  string(value["regionName"]),
+				RegionName:  regionName,
 				HousingType: utils.Str2int(string(value["housing_type"])),
 				Price:       string(value["price"]),
 				PriceRmb:    "",

@@ -371,21 +371,53 @@ func (this *PublicModel) Public_EstateManageAdd(estParam *PublicEstateManageAddP
 		return errMsg
 	}
 
+	// 用户信息
+	userInfo, errMsg := userModel.GetUserInfo(&GetUserInfoParameter{UserId: estParam.UserId})
+	if errMsg != "" {
+		return errMsg
+	}
+
+	// 开启事务
+	transaction := db.Db.NewSession()
+	if err := transaction.Begin(); err != nil {
+		return "开启事务失败"
+	}
+
 	// 更新房产
 	if estParam.EstateId == 0 { // 新增
+		// 新增房源
 		sql := `INSERT INTO p_estate(user_id, code, agency_fee, price, points, measure_area, huxing, housing_type, total_floor, floor, building_time, building_structure, land_rights, orientation, state, rent, return_rate, repair_fee, manage_fee, region_id, traffic, address, picture) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
-		_, err := db.Db.Exec(sql, estParam.UserId, uuid.Rand().Hex(), agencyFee, estParam.Price, estParam.Points, estParam.MeasureArea, estParam.Huxing, estParam.HousingType, estParam.TotalFloor, estParam.Floor, estParam.BuildingTime, estParam.BuildingStructure, estParam.LandRights, estParam.Orientation, estParam.State, estParam.Rent, estParam.ReturnRate, estParam.RepairFee, estParam.ManageFee, estParam.RegionId, estParam.Traffic, estParam.Address, estParam.Picture)
+		_, err := transaction.Exec(sql, estParam.UserId, uuid.Rand().Hex(), agencyFee, estParam.Price, estParam.Points, estParam.MeasureArea, estParam.Huxing, estParam.HousingType, estParam.TotalFloor, estParam.Floor, estParam.BuildingTime, estParam.BuildingStructure, estParam.LandRights, estParam.Orientation, estParam.State, estParam.Rent, estParam.ReturnRate, estParam.RepairFee, estParam.ManageFee, estParam.RegionId, estParam.Traffic, estParam.Address, estParam.Picture)
 		if err != nil {
+			transaction.Rollback()
 			return "新增房产失败"
 		}
+
+		// 更新发布房源数量
+		sql = `UPDATE p_company
+			   SET release_number=release_number+1
+			   WHERE id=?`
+		_, err = transaction.Exec(sql, userInfo.CompanyId)
+		if err != nil {
+			transaction.Rollback()
+			return "更新发布房源数量失败"
+		}
 	} else { // 编辑
+		// 编辑房源
 		sql := `UPDATE p_estate
 				SET agency_fee=?, price=?, points=?, measure_area=?, huxing=?, housing_type=?, total_floor=?, floor=?, building_time=?, building_structure=?, land_rights=?, orientation=?, state=?, rent=?, return_rate=?, repair_fee=?, manage_fee=?, region_id=?, traffic=?, address=?, picture=?
 				WHERE id=?`
-		_, err := db.Db.Exec(sql, agencyFee, estParam.Price, estParam.Points, estParam.MeasureArea, estParam.Huxing, estParam.HousingType, estParam.TotalFloor, estParam.Floor, estParam.BuildingTime, estParam.BuildingStructure, estParam.LandRights, estParam.Orientation, estParam.State, estParam.Rent, estParam.ReturnRate, estParam.RepairFee, estParam.ManageFee, estParam.RegionId, estParam.Traffic, estParam.Address, estParam.Picture, estParam.EstateId)
+		_, err := transaction.Exec(sql, agencyFee, estParam.Price, estParam.Points, estParam.MeasureArea, estParam.Huxing, estParam.HousingType, estParam.TotalFloor, estParam.Floor, estParam.BuildingTime, estParam.BuildingStructure, estParam.LandRights, estParam.Orientation, estParam.State, estParam.Rent, estParam.ReturnRate, estParam.RepairFee, estParam.ManageFee, estParam.RegionId, estParam.Traffic, estParam.Address, estParam.Picture, estParam.EstateId)
 		if err != nil {
+			transaction.Rollback()
 			return "更新房产失败"
 		}
+	}
+
+	// 提交事务
+	if err := transaction.Commit(); err != nil {
+		transaction.Rollback()
+		return "提交事务失败"
 	}
 
 	return
@@ -646,13 +678,13 @@ func (this *PublicModel) Public_EstateList(estParam *PublicEstateListParamter) (
 		// 房龄
 		switch screen.BuildingTime {
 		case 1: // 2年以下
-			where += ` ADN date_sub(curdate(), interval 2 year)<e.building_time`
+			where += ` ADN date_format(date_sub(curdate(), interval 2 year),'%Y-%m')<e.building_time`
 		case 2: // 2-5年
-			where += ` ADN date_sub(curdate(), interval 5 year)<=e.building_time AND date_sub(curdate(), interval 2 year)>=e.building_time`
+			where += ` ADN date_format(date_sub(curdate(), interval 5 year),'%Y-%m')<=e.building_time AND date_format(date_sub(curdate(), interval 2 year),'%Y-%m')>=e.building_time`
 		case 3: // 5-10年
-			where += ` ADN date_sub(curdate(), interval 10 year)<=e.building_time AND date_sub(curdate(), interval 5 year)>=e.building_time`
+			where += ` ADN date_format(date_sub(curdate(), interval 10 year),'%Y-%m')<=e.building_time AND date_format(date_sub(curdate(), interval 5 year),'%Y-%m')>=e.building_time`
 		case 4: // 10年以上
-			where += ` ADN date_sub(curdate(), interval 10 year)>e.building_time`
+			where += ` ADN date_format(date_sub(curdate(), interval 10 year),'%Y-%m')>e.building_time`
 		}
 
 		// 朝向
@@ -810,7 +842,7 @@ func (this *PublicModel) Public_EstateList(estParam *PublicEstateListParamter) (
 				Huxing:      string(value["huxing"]),
 				HuxingAlias: GetHuxingAlias(string(value["huxing"])),
 				MeasureArea: string(value["measure_area"]),
-				RegionName:  string(value["regionName"]),
+				RegionName:  regionName,
 				HousingType: utils.Str2int(string(value["housing_type"])),
 				Price:       string(value["price"]),
 				PriceRmb:    "",
@@ -875,6 +907,11 @@ func (this *PublicModel) Public_EstateDetail(estateId int) (data *PublicEstateDe
 		return data, errMsg
 	}
 
+	// 建筑年月
+	buildingTimeArray := strings.Split(string(row[0]["building_time"]), "-")
+	buildingTime := buildingTimeArray[0] + "年" + utils.Int2str(utils.Str2int(buildingTimeArray[1])) + "月"
+
+	// 封装数据
 	return &PublicEstateDetailReturn{
 		EstateId:          utils.Str2int(string(row[0]["id"])),
 		EstateName:        regionName + areaName + GetHousingTypeName(utils.Str2int(string(row[0]["housing_type"]))),
@@ -886,7 +923,7 @@ func (this *PublicModel) Public_EstateDetail(estateId int) (data *PublicEstateDe
 		MeasureArea:       string(row[0]["measure_area"]),
 		HousingType:       utils.Str2int(string(row[0]["housing_type"])),
 		LandRights:        utils.Str2int(string(row[0]["land_rights"])),
-		BuildingTime:      string(row[0]["building_time"]),
+		BuildingTime:      buildingTime,
 		Floor:             utils.Str2int(string(row[0]["floor"])),
 		TotalFloor:        utils.Str2int(string(row[0]["total_floor"])),
 		BuildingStructure: utils.Str2int(string(row[0]["building_structure"])),

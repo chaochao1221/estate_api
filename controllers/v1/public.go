@@ -435,7 +435,7 @@ func Public_EstateList(c *gin.Context) {
 		ScreenJson: c.Query("screen_json"),
 		Status:     utils.Str2int(c.Query("status")),
 		PerPage:    utils.Str2int(c.Query("per_page")),
-		LastId:     utils.Str2int(c.Query("last_ld")),
+		LastId:     utils.Str2int(c.Query("last_id")),
 		UserId:     utils.Str2int(c.Request.Header.Get("user_id")),
 		UserType:   utils.Str2int(c.Request.Header.Get("user_type")),
 		GroupId:    utils.Str2int(c.Request.Header.Get("group_id")),

@@ -24,7 +24,7 @@ func Tourists_EstateList(c *gin.Context) {
 		Listorder:  utils.Str2int(c.Query("listorder")),
 		ScreenJson: c.Query("screen_json"),
 		PerPage:    utils.Str2int(c.Query("per_page")),
-		LastId:     utils.Str2int(c.Query("last_ld")),
+		LastId:     utils.Str2int(c.Query("last_id")),
 	})
 
 	// 房源列表
