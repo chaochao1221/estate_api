@@ -180,7 +180,7 @@ func (this *ChinaModel) China_CustomerProgressList(cusParam *ChinaCustomerProgre
 				Name:      string(value["name"]),
 				Wechat:    string(value["wechat"]),
 				Sex:       utils.Str2int(string(value["sex"])),
-				AddTime:   string(value["add_time"]),
+				AddTime:   DateFormat(string(value["add_time"]), "2006/01/02"),
 				IsButt:    utils.Str2int(string(value["is_butt"])),
 				IsToJapan: utils.Str2int(string(value["is_to_japan"])),
 				IsAgree:   utils.Str2int(string(value["is_agree"])),

@@ -28,7 +28,7 @@ func Public(parentRoute *gin.RouterGroup) {
 	router.POST("/estate_manage/remove_shelves", Public_EstateManageRemoveShelves) // 3.3.4 公用-房源管理-下架
 	router.GET("/estate_list", Public_EstateList)                                  // 3.5 公用-房源列表
 	router.POST("/feedback", Public_Feedback)                                      // 3.7 公用-意见反馈
-	router.POST("/contact", Public_Contact)                                        // 3.8 公用-联系方式
+	router.GET("/contact", Public_Contact)                                         // 3.8 公用-联系方式
 }
 
 // 公用-公司详情

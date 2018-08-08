@@ -74,25 +74,27 @@ func (this *BaseModel) Base_SalesAchievement(addTime string, perPage, lastId int
 	if lastId > 0 {
 		// 获取当前分页的最后一条数据的时间
 		sql := `SELECT SUM(e.price) total_price
-				FROM p_recommend r
+				FROM base_distribution d
+				LEFT JOIN p_recommend r ON r.id=d.recommend_id
 				LEFT JOIN p_estate e ON e.id=r.estate_id
-				WHERE r.user_id=?`
+				WHERE d.user_id=? AND r.is_pay=1`
 		row, err := db.Db.Query(sql, lastId)
 		if err != nil {
 			return data, "获取销售业绩失败"
 		}
 		totalPrice := string(row[0]["total_price"])
-		having = ` HAVING (SUM(e.price)<` + totalPrice + ` OR (SUM(e.price)=` + totalPrice + ` AND r.user_id>` + strconv.Itoa(lastId) + `))`
+		having = ` HAVING (SUM(e.price)<` + totalPrice + ` OR (SUM(e.price)=` + totalPrice + ` AND d.user_id>` + strconv.Itoa(lastId) + `))`
 	}
 
 	// 销售业绩列表
 	sql := `SELECT r.user_id, u.name, COUNT(r.user_id) count, SUM(e.price) total_price
-			FROM p_recommend r
-			LEFT JOIN p_user u ON u.id=r.user_id
+			FROM base_distribution d
+			LEFT JOIN p_recommend r ON r.id=d.recommend_id
+			LEFT JOIN p_user u ON u.id=d.user_id
 			LEFT JOIN p_estate e ON e.id=r.estate_id
-			WHERE is_pay=1 AND deal_time>=? AND deal_time<=?
-			GROUP BY r.user_id
-			ORDER BY total_price DESC, user_id ` + having + ` LIMIT 0,?`
+			WHERE r.is_pay=1 AND r.deal_time>=? AND r.deal_time<=?
+			GROUP BY d.user_id
+			ORDER BY total_price DESC, d.user_id ` + having + ` LIMIT 0,?`
 	rows, err := db.Db.Query(sql, addTime, endTime, perPage+1)
 	if err != nil {
 		return data, "获取销售业绩失败"
@@ -139,25 +141,27 @@ func (this *BaseModel) Base_SalesProfitList(addTime string, perPage, lastId int)
 	if lastId > 0 {
 		// 获取当前分页的最后一条数据的时间
 		sql := `SELECT SUM(e.agency_fee) total_price
-				FROM p_recommend r
+				FROM base_distribution d
+				LEFT JOIN p_recommend r ON r.id=d.recommend_id
 				LEFT JOIN p_estate e ON e.id=r.estate_id
-				WHERE r.user_id=?`
+				WHERE d.user_id=? AND r.is_pay=1`
 		row, err := db.Db.Query(sql, lastId)
 		if err != nil {
 			return data, "获取中介费用失败"
 		}
 		totalPrice := string(row[0]["agency_fee"])
-		having = ` HAVING (SUM(e.agency_fee)<` + totalPrice + ` OR (SUM(e.agency_fee)=` + totalPrice + ` AND r.user_id>` + strconv.Itoa(lastId) + `))`
+		having = ` HAVING (SUM(e.agency_fee)<` + totalPrice + ` OR (SUM(e.agency_fee)=` + totalPrice + ` AND d.user_id>` + strconv.Itoa(lastId) + `))`
 	}
 
 	// 中介费用列表
-	sql := `SELECT r.user_id, u.name, COUNT(r.user_id) count, SUM(e.agency_fee) total_price
-			FROM p_recommend r
-			LEFT JOIN p_user u ON u.id=r.user_id
+	sql := `SELECT d.user_id, u.name, COUNT(d.user_id) count, SUM(e.agency_fee) total_price
+			FROM base_distribution d
+			LEFT JOIN p_recommend r ON r.id=d.recommend_id
+			LEFT JOIN p_user u ON u.id=d.user_id
 			LEFT JOIN p_estate e ON e.id=r.estate_id
-			WHERE is_pay=1 AND deal_time>=? AND deal_time<=?
-			GROUP BY r.user_id
-			ORDER BY total_price DESC, user_id ` + having + ` LIMIT 0,?`
+			WHERE r.is_pay=1 AND r.deal_time>=? AND r.deal_time<=?
+			GROUP BY d.user_id
+			ORDER BY total_price DESC, d.user_id ` + having + ` LIMIT 0,?`
 	rows, err := db.Db.Query(sql, addTime, endTime, perPage+1)
 	if err != nil {
 		return data, "获取中介费用失败"
@@ -209,11 +213,12 @@ func (this *BaseModel) Base_SalesProfitDetail(id int) (data *BaseSalesProfitDeta
 	data = new(BaseSalesProfitDetailReturn)
 
 	// 中介费用详情
-	sql := `SELECT r.estate_id, r.deal_time, e.code, e.agency_fee, e.region_id, re.name regionName, re.type regionType, e.housing_type
-			FROM p_recommend r
+	sql := `SELECT r.estate_id, r.deal_time, e.code, e.agency_fee, re.p_id regionPId, re.name regionName, re.type regionType, e.housing_type
+			FROM base_distribution d
+			LEFT JOIN p_recommend r ON r.id=d.recommend_id
 			LEFT JOIN p_estate e ON e.id=r.estate_id
 			LEFT JOIN p_region re ON re.id=e.region_id
-			WHERE r.user_id=?`
+			WHERE d.user_id=? AND r.is_pay=1`
 	rows, err := db.Db.Query(sql, id)
 	if err != nil {
 		return data, "获取中介费用详情失败"
@@ -454,7 +459,7 @@ func (this *BaseModel) Base_WaitDistributionList(perPage, lastId int) (data *Bas
 				Sex:     utils.Str2int(string(value["sex"])),
 				Wechat:  string(value["wechat"]),
 				Source:  company,
-				AddTime: string(value["add_time"]),
+				AddTime: DateFormat(string(value["add_time"]), "2006/01/02"),
 			})
 
 			lastId = utils.Str2int(string(value["id"]))
@@ -467,7 +472,28 @@ func (this *BaseModel) Base_WaitDistributionList(perPage, lastId int) (data *Bas
 }
 
 // 本部中介-待分配客户分配
-func (this *BaseModel) Base_WaitDistributionDistribution(id, userId int) (errMsg string) {
+func (this *BaseModel) Base_WaitDistributionDistribution(id, userId, leaderUserId int) (errMsg string) {
+	// 判断已经分配过的推荐不允许重复分配
+	sql := `SELECT is_distribution
+			FROM p_recommend
+			WHERE id=?`
+	row, err := db.Db.Query(sql, id)
+	if err != nil {
+		return "获取推荐状态失败"
+	}
+	if len(row) == 0 {
+		return "该推荐不存在"
+	}
+	if utils.Str2int(string(row[0]["is_distribution"])) == 1 {
+		return "已经分配过的客户不允许重复分配"
+	}
+
+	// 用户信息
+	userInfo, errMsg := userModel.GetUserInfo(&GetUserInfoParameter{UserId: leaderUserId})
+	if errMsg != "" {
+		return errMsg
+	}
+
 	// 开启事务
 	transaction := db.Db.NewSession()
 	if err := transaction.Begin(); err != nil {
@@ -475,8 +501,8 @@ func (this *BaseModel) Base_WaitDistributionDistribution(id, userId int) (errMsg
 	}
 
 	// 分配
-	sql := `INSERT INTO base_distribution(recommend_id, user_id) VALUES(?,?)`
-	_, err := transaction.Exec(sql, id, userId)
+	sql = `INSERT INTO base_distribution(recommend_id, user_id) VALUES(?,?)`
+	_, err = transaction.Exec(sql, id, userId)
 	if err != nil {
 		transaction.Rollback()
 		return "更新分配失败"
@@ -484,12 +510,22 @@ func (this *BaseModel) Base_WaitDistributionDistribution(id, userId int) (errMsg
 
 	// 更新推荐状态
 	sql = `UPDATE p_recommend
-		   SET is_distribution=1
+		   SET is_distribution=1, is_butt=1
 		   WHERE id=?`
 	_, err = transaction.Exec(sql, id)
 	if err != nil {
 		transaction.Rollback()
 		return "更新推荐状态失败"
+	}
+
+	// 更新公司对接客户数量
+	sql = `UPDATE p_company
+		   SET butt_number=butt_number+1
+		   WHERE id=?`
+	_, err = transaction.Exec(sql, userInfo.CompanyId)
+	if err != nil {
+		transaction.Rollback()
+		return "更新公司对接客户数量失败"
 	}
 
 	// 提交事务
@@ -503,12 +539,27 @@ func (this *BaseModel) Base_WaitDistributionDistribution(id, userId int) (errMsg
 
 // 本部中介-待分配客户删除
 func (this *BaseModel) Base_WaitDistributionDel(id int) (errMsg string) {
+	// 判断已经分配过的推荐不允许删除
+	sql := `SELECT is_distribution
+			FROM p_recommend
+			WHERE id=?`
+	row, err := db.Db.Query(sql, id)
+	if err != nil {
+		return "获取推荐状态失败"
+	}
+	if len(row) == 0 {
+		return "该推荐不存在"
+	}
+	if utils.Str2int(string(row[0]["is_distribution"])) == 1 {
+		return "已经分配过的推荐不允许删除"
+	}
+
 	// 删除待分配客户
-	sql := `DELETE r, t
-			FROM p_recommend r
-			LEFT JOIN p_tourists t ON t.id=r.tourists_id
-			WHERE r.id=?`
-	_, err := db.Db.Exec(sql, id)
+	sql = `DELETE r, t
+		   FROM p_recommend r
+		   LEFT JOIN p_tourists t ON t.id=r.tourists_id
+		   WHERE r.id=?`
+	_, err = db.Db.Exec(sql, id)
 	if err != nil {
 		return "待分配客户删除失败"
 	}
@@ -864,7 +915,7 @@ func (this *BaseModel) Base_ChinaManageList(keyword string, regionId, perPage, l
 				CompanyName: string(value["companyName"]),
 				UserName:    string(value["userName"]),
 				Telephone:   string(value["telephone"]),
-				AddTime:     string(value["add_time"]),
+				AddTime:     DateFormat(string(value["add_time"]), "2006/01/02"),
 			})
 			lastId = utils.Str2int(string(value["id"]))
 		} else {
@@ -1177,7 +1228,7 @@ func (this *BaseModel) Base_CustomerManageList(cusParam *BaseCustomerManageListP
 				Name:      string(value["name"]),
 				Sex:       utils.Str2int(string(value["sex"])),
 				Wechat:    string(value["wechat"]),
-				AddTime:   string(value["add_time"]),
+				AddTime:   DateFormat(string(value["add_time"]), "2006/01/02"),
 				IsButt:    utils.Str2int(string(value["is_butt"])),
 				IsToJapan: utils.Str2int(string(value["is_to_japan"])),
 				IsAgree:   utils.Str2int(string(value["is_agree"])),

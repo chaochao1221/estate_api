@@ -115,7 +115,7 @@ func (this *JapanModel) Japan_EstateProgress(status, perPage, lastId, userId, us
 				Price:          string(value["price"]),
 				CustomerNumber: customerNumber,
 				Status:         utils.Str2int(string(value["status"])),
-				AddTime:        string(value["add_time"]),
+				AddTime:        DateFormat(string(value["add_time"]), "2006/01/02"),
 			})
 			lastId = id
 		} else {

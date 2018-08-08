@@ -325,9 +325,10 @@ func Base_WaitDistributionList(c *gin.Context) {
 func Base_WaitDistributionDistribution(c *gin.Context) {
 	id, _ := strconv.Atoi(c.PostForm("id"))
 	userId, _ := strconv.Atoi(c.PostForm("user_id"))
+	leaderUserId, _ := strconv.Atoi(c.Request.Header.Get("user_id"))
 	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
 	userType, _ := strconv.Atoi(c.Request.Header.Get("user_type"))
-	if id == 0 || userId == 0 || groupId == 0 {
+	if id == 0 || userId == 0 || leaderUserId == 0 || groupId == 0 {
 		c.JSON(400, gin.H{
 			"code": 1010,
 			"msg":  "参数错误",
@@ -343,7 +344,7 @@ func Base_WaitDistributionDistribution(c *gin.Context) {
 	}
 
 	// 分配客户
-	errMsg := baseModel.Base_WaitDistributionDistribution(id, userId)
+	errMsg := baseModel.Base_WaitDistributionDistribution(id, userId, leaderUserId)
 	if errMsg != "" {
 		c.JSON(400, gin.H{
 			"code": 1010,
