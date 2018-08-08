@@ -240,8 +240,8 @@ func Base_SalesProfitSettingDetail(c *gin.Context) {
 
 // 本部中介-中介费用统计设置修改
 func Base_SalesProfitSettingModify(c *gin.Context) {
-	estateId, _ := strconv.Atoi(c.Query("estate_id"))
-	agencyJson := c.Query("agency_json")
+	estateId, _ := strconv.Atoi(c.PostForm("estate_id"))
+	agencyJson := c.PostForm("agency_json")
 	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
 	userType, _ := strconv.Atoi(c.Request.Header.Get("user_type"))
 	if estateId == 0 || agencyJson == "" || groupId == 0 {

@@ -346,7 +346,7 @@ func (this *BaseModel) Base_SalesProfitSettingModify(estateId int, agencyJson st
 	sql := `UPDATE p_estate
 			SET price=?, agency_fee=?
 			WHERE id=?`
-	_, err := transaction.Exec(sql, estateId, agency.Price, agency.AgencyFee)
+	_, err := transaction.Exec(sql, agency.Price, agency.AgencyFee, estateId)
 	if err != nil {
 		transaction.Rollback()
 		return "修改房源信息失败"
