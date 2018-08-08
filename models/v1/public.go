@@ -818,7 +818,6 @@ func (this *PublicModel) Public_EstateList(estParam *PublicEstateListParamter) (
 			LEFT JOIN p_user u ON u.id=e.user_id
 			WHERE e.is_del=0 ` + where + order + ` LIMIT 0,?`
 	rows, err := db.Db.Query(sql, estParam.PerPage+1)
-	fmt.Println(sql)
 	if err != nil {
 		return data, "获取房源列表失败"
 	}
@@ -884,14 +883,14 @@ type PublicEstateDetailReturn struct {
 
 // 公用-房源详情
 func (this *PublicModel) Public_EstateDetail(estateId int) (data *PublicEstateDetailReturn, errMsg string) {
-	sql := `SELECT e.id, e.code, e.room_number, e.exist_living_room, e.exist_dining_room,
-			e.exist_kitchen, e.measure_area, e.housing_type, e.price, e.land_rights, e.building_time, e.floor, e.total_floor,
-			e.building_structure, e.orientation, e.repair_fee, e.state, e.rent, e.return_rate, e.manage_fee, r.type region_type,
+	sql := `SELECT e.id, e.code, e.measure_area, e.price, e.huxing, e.housing_type, e.land_rights, e.building_time, e.floor, e.total_floor,
+			e.building_structure, e.orientation, e.repair_fee, e.state, e.rent, e.return_rate, e.manage_fee, r.p_id regionPId, r.name regionName, r.type region_type
 			FROM p_estate e
 			LEFT JOIN p_region r ON r.id=e.region_id
-			WHERE e.id=? AND e.status=1 AND e.is_del=0 AND e.add_time<?`
+			WHERE e.id=? AND e.status=1 AND e.is_del=0`
 	row, err := db.Db.Query(sql, estateId)
 	if err != nil {
+		fmt.Println(err, sql)
 		return data, "获取房源信息失败"
 	}
 	if len(row) == 0 {
