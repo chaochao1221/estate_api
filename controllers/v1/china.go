@@ -3,6 +3,7 @@ package v1
 import (
 	"estate/middleware"
 	"estate/models/v1"
+	"estate/utils"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -60,15 +61,21 @@ func China_Recommend(c *gin.Context) {
 
 // 中国中介-客户进展列表
 func China_CustomerProgressList(c *gin.Context) {
-	keyword := c.Query("keyword")
-	status, _ := strconv.Atoi(c.Query("status"))
-	userId, _ := strconv.Atoi(c.Query("user_id"))
-	perPage, _ := strconv.Atoi(c.Query("per_page"))
-	lastId, _ := strconv.Atoi(c.Query("last_id"))
-	uId, _ := strconv.Atoi(c.Request.Header.Get("user_id"))
-	userType, _ := strconv.Atoi(c.Request.Header.Get("user_type"))
+	cusParam := &(v1.ChinaCustomerProgressListParameter{
+		Keyword:     c.Query("keyword"),
+		IsButt:      c.Query("is_butt"),
+		IsToJapan:   c.Query("is_to_japan"),
+		IsAgree:     c.Query("is_agree"),
+		IsPay:       c.Query("is_pay"),
+		IsLoan:      c.Query("is_loan"),
+		UserId:      utils.Str2int(c.Query("user_id")),
+		PerPage:     utils.Str2int(c.Query("per_page")),
+		LastId:      utils.Str2int(c.Query("last_id")),
+		LoginUserId: utils.Str2int(c.Request.Header.Get("user_id")),
+		UserType:    utils.Str2int(c.Request.Header.Get("user_type")),
+	})
 	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
-	if uId == 0 || groupId == 0 {
+	if cusParam.LoginUserId == 0 || groupId == 0 {
 		c.JSON(400, gin.H{
 			"code": 1010,
 			"msg":  "参数错误",
@@ -84,11 +91,19 @@ func China_CustomerProgressList(c *gin.Context) {
 	}
 
 	// 客户进展
-	data, errMsg := chinaModel.China_CustomerProgressList(keyword, status, userId, perPage, lastId, uId, userType)
+	data, errMsg := chinaModel.China_CustomerProgressList(cusParam)
 	if errMsg != "" {
 		c.JSON(400, gin.H{
 			"code": 1010,
 			"msg":  errMsg,
+		})
+		return
+	}
+	if data == nil {
+		c.JSON(200, gin.H{
+			"code": 0,
+			"msg":  "success",
+			"data": make(map[string]interface{}),
 		})
 		return
 	}

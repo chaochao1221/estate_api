@@ -839,7 +839,11 @@ func Base_CustomerManageList(c *gin.Context) {
 		Keyword:   c.Query("keyword"),
 		UserId:    utils.Str2int(c.Query("user_id")),
 		CompanyId: utils.Str2int(c.Query("company_id")),
-		Status:    utils.Str2int(c.Query("status")),
+		IsButt:    c.Query("is_butt"),
+		IsToJapan: c.Query("is_to_japan"),
+		IsAgree:   c.Query("is_agree"),
+		IsPay:     c.Query("is_pay"),
+		IsLoan:    c.Query("is_loan"),
 		PerPage:   utils.Str2int(c.Query("per_page")),
 		LastId:    utils.Str2int(c.Query("last_id")),
 	})

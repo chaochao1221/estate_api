@@ -1071,7 +1071,11 @@ type BaseCustomerManageListParamater struct {
 	Keyword   string
 	UserId    int
 	CompanyId int
-	Status    int
+	IsButt    string
+	IsToJapan string
+	IsAgree   string
+	IsPay     string
+	IsLoan    string
 	PerPage   int
 	LastId    int
 }
@@ -1120,29 +1124,20 @@ func (this *BaseModel) Base_CustomerManageList(cusParam *BaseCustomerManageListP
 	}
 
 	// 状态
-	switch cusParam.Status {
-	case 1:
-		where += ` AND r.is_butt=0`
-	case 2:
-		where += ` AND r.is_butt=1`
-	case 3:
-		where += ` AND r.is_to_japan=0`
-	case 4:
-		where += ` AND r.is_to_japan=1`
-	case 5:
-		where += ` AND r.is_agree=0`
-	case 6:
-		where += ` AND r.is_agree=1`
-	case 7:
-		where += ` AND r.is_pay=0`
-	case 8:
-		where += ` AND r.is_pay=1`
-	case 9:
-		where += ` AND r.is_loan=0`
-	case 10:
-		where += ` AND r.is_loan=1`
-	default:
-		return data, "不存在该状态"
+	if cusParam.IsButt != "" {
+		where += ` AND r.is_butt=` + cusParam.IsButt
+	}
+	if cusParam.IsToJapan != "" {
+		where += ` AND r.is_to_japan=` + cusParam.IsToJapan
+	}
+	if cusParam.IsAgree != "" {
+		where += ` AND r.is_agree=` + cusParam.IsAgree
+	}
+	if cusParam.IsPay != "" {
+		where += ` AND r.is_pay=` + cusParam.IsPay
+	}
+	if cusParam.IsLoan != "" {
+		where += ` AND r.is_loan=` + cusParam.IsLoan
 	}
 
 	// 分页

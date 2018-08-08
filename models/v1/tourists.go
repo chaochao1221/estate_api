@@ -234,6 +234,18 @@ func (this *TouristsModel) Tourists_EstateList(estParam *PublicEstateListParamte
 
 // 游客-房源咨询
 func (this *TouristsModel) Tourists_EstateConsulting(estateId, sex int, name, wechat string) (errMsg string) {
+	// 判断该房源是否存在
+	sql := `SELECT id
+			FROM p_estate
+			WHERE id=? AND is_del=0 AND status=1`
+	rows, err := db.Db.Query(sql, estateId)
+	if err != nil {
+		return "获取房源失败"
+	}
+	if len(rows) == 0 {
+		return "The estate does not exist"
+	}
+
 	// 开启事务
 	transaction := db.Db.NewSession()
 	if err := transaction.Begin(); err != nil {
@@ -241,7 +253,7 @@ func (this *TouristsModel) Tourists_EstateConsulting(estateId, sex int, name, we
 	}
 
 	// 更新游客表
-	sql := `INSERT INTO p_tourists(name, wechat, sex) VALUES(?,?,?)`
+	sql = `INSERT INTO p_tourists(name, wechat, sex) VALUES(?,?,?)`
 	row, err := transaction.Exec(sql, name, wechat, sex)
 	if err != nil {
 		transaction.Rollback()

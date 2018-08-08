@@ -22,7 +22,6 @@ type EstateProgressList struct {
 	EstateCode     string `json:"estate_code"`
 	HousingType    int    `json:"housing_type"`
 	RegionName     string `json:"region_name"`
-	AreaName       string `json:"area_name"`
 	MeasureArea    string `json:"measure_area"`
 	Price          string `json:"price"`
 	CustomerNumber int    `json:"customer_number"`
@@ -37,8 +36,17 @@ func (this *JapanModel) Japan_EstateProgress(status, perPage, lastId, userId, us
 
 	// 条件
 	var where string
+
+	// 销售只能看自己发布房源的进展，主管可以看本公司发布的所有房源
 	if userType == 0 { // 销售
 		where = ` AND e.user_id=` + strconv.Itoa(userId)
+	} else {
+		// 用户信息
+		userInfo, errMsg := userModel.GetUserInfo(&GetUserInfoParameter{UserId: userId})
+		if errMsg != "" {
+			return data, errMsg
+		}
+		where = ` AND u.company_id=` + strconv.Itoa(userInfo.CompanyId)
 	}
 	if status > 0 {
 		where += ` AND e.status=` + strconv.Itoa(status)
@@ -62,8 +70,9 @@ func (this *JapanModel) Japan_EstateProgress(status, perPage, lastId, userId, us
 	// 获取房源进展列表
 	sql := `SELECT e.id, e.code, e.housing_type, e.measure_area, e.price, e.status, e.add_time, r.type regionType, r.name regionName, r.p_id regionPId
 			FROM p_estate e
+			LEFT JOIN p_user u ON u.id=e.user_id
 			LEFT JOIN p_region r ON r.id=e.region_id
-			WHERE e.is_del=0` + where + ` ORDER BY e.add_time DESC,id DESC LIMIT 0,?`
+			WHERE e.is_del=0 AND e.status=1 ` + where + ` ORDER BY e.add_time DESC,id DESC LIMIT 0,?`
 	rows, err := db.Db.Query(sql, perPage+1)
 	if err != nil {
 		return nil, "获取房源进展列表失败"
@@ -101,8 +110,7 @@ func (this *JapanModel) Japan_EstateProgress(status, perPage, lastId, userId, us
 				Id:             id,
 				EstateCode:     string(value["code"]),
 				HousingType:    utils.Str2int(string(value["housing_type"])),
-				RegionName:     regionName,
-				AreaName:       areaName,
+				RegionName:     regionName + "-" + areaName,
 				MeasureArea:    string(value["measure_area"]),
 				Price:          string(value["price"]),
 				CustomerNumber: customerNumber,
