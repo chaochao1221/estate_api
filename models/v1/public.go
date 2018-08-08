@@ -620,7 +620,7 @@ func (this *PublicModel) Public_EstateList(estParam *PublicEstateListParamter) (
 
 	// 关键字
 	if estParam.Keyword != "" {
-		where = ` e.code="` + estParam.Keyword + `" `
+		where = ` AND e.code="` + estParam.Keyword + `" `
 	}
 
 	// 筛选
@@ -764,7 +764,7 @@ func (this *PublicModel) Public_EstateList(estParam *PublicEstateListParamter) (
 				return data, "获取房源面积失败"
 			}
 			measureArea := string(row[0]["measure_area"])
-			where += ` AND (e.measure_area>"` + measureArea + `" OR (e.measure_area="` + measureArea + `" AND r.id>` + strconv.Itoa(estParam.LastId) + `))`
+			where += ` AND (e.measure_area>"` + measureArea + `" OR (e.measure_area="` + measureArea + `" AND e.id>` + strconv.Itoa(estParam.LastId) + `))`
 		}
 
 		order += ` ORDER BY e.measure_area, e.id`
@@ -777,7 +777,7 @@ func (this *PublicModel) Public_EstateList(estParam *PublicEstateListParamter) (
 				return data, "获取房源面积失败"
 			}
 			measureArea := string(row[0]["measure_area"])
-			where += ` AND (e.measure_area<"` + measureArea + `" OR (e.measure_area="` + measureArea + `" AND r.id<` + strconv.Itoa(estParam.LastId) + `))`
+			where += ` AND (e.measure_area<"` + measureArea + `" OR (e.measure_area="` + measureArea + `" AND e.id<` + strconv.Itoa(estParam.LastId) + `))`
 		}
 
 		order += ` ORDER BY e.measure_area DESC, e.id DESC`
@@ -790,7 +790,7 @@ func (this *PublicModel) Public_EstateList(estParam *PublicEstateListParamter) (
 				return data, "获取房源面积失败"
 			}
 			price := string(row[0]["price"])
-			where += ` AND (e.price>"` + price + `" OR (e.price="` + price + `" AND r.id>` + strconv.Itoa(estParam.LastId) + `))`
+			where += ` AND (e.price>"` + price + `" OR (e.price="` + price + `" AND e.id>` + strconv.Itoa(estParam.LastId) + `))`
 		}
 
 		order += ` ORDER BY e.price, e.id`
@@ -803,7 +803,7 @@ func (this *PublicModel) Public_EstateList(estParam *PublicEstateListParamter) (
 				return data, "获取房源面积失败"
 			}
 			price := string(row[0]["price"])
-			where += ` AND (e.price<"` + price + `" OR (e.price="` + price + `" AND r.id<` + strconv.Itoa(estParam.LastId) + `))`
+			where += ` AND (e.price<"` + price + `" OR (e.price="` + price + `" AND e.id<` + strconv.Itoa(estParam.LastId) + `))`
 		}
 
 		order += ` ORDER BY e.price DESC, e.id DESC`
@@ -818,6 +818,7 @@ func (this *PublicModel) Public_EstateList(estParam *PublicEstateListParamter) (
 			LEFT JOIN p_user u ON u.id=e.user_id
 			WHERE e.is_del=0 ` + where + order + ` LIMIT 0,?`
 	rows, err := db.Db.Query(sql, estParam.PerPage+1)
+	fmt.Println(sql)
 	if err != nil {
 		return data, "获取房源列表失败"
 	}
