@@ -80,13 +80,13 @@ func (this *TouristsModel) Tourists_EstateList(estParam *PublicEstateListParamte
 		// 房龄
 		switch screen.BuildingTime {
 		case 1: // 2年以下
-			where += ` ADN date_sub(curdate(), interval 2 year)<e.building_time`
+			where += ` ADN date_format(date_sub(curdate(), interval 2 year),'%Y-%m')<e.building_time`
 		case 2: // 2-5年
-			where += ` ADN date_sub(curdate(), interval 5 year)<=e.building_time AND date_sub(curdate(), interval 2 year)>=e.building_time`
+			where += ` ADN date_format(date_sub(curdate(), interval 5 year),'%Y-%m')<=e.building_time AND date_format(date_sub(curdate(), interval 2 year),'%Y-%m')>=e.building_time`
 		case 3: // 5-10年
-			where += ` ADN date_sub(curdate(), interval 10 year)<=e.building_time AND date_sub(curdate(), interval 5 year)>=e.building_time`
+			where += ` ADN date_format(date_sub(curdate(), interval 10 year),'%Y-%m')<=e.building_time AND date_format(date_sub(curdate(), interval 5 year),'%Y-%m')>=e.building_time`
 		case 4: // 10年以上
-			where += ` ADN date_sub(curdate(), interval 10 year)>e.building_time`
+			where += ` ADN date_format(date_sub(curdate(), interval 10 year),'%Y-%m')>e.building_time`
 		}
 
 		// 朝向
@@ -139,7 +139,7 @@ func (this *TouristsModel) Tourists_EstateList(estParam *PublicEstateListParamte
 				return data, "获取房源面积失败"
 			}
 			measureArea := string(row[0]["measure_area"])
-			where += ` AND (e.measure_area>"` + measureArea + `" OR (e.measure_area="` + measureArea + `" AND r.id>` + strconv.Itoa(estParam.LastId) + `))`
+			where += ` AND (e.measure_area>"` + measureArea + `" OR (e.measure_area="` + measureArea + `" AND e.id>` + strconv.Itoa(estParam.LastId) + `))`
 		}
 
 		order += ` ORDER BY e.measure_area, e.id`
@@ -152,7 +152,7 @@ func (this *TouristsModel) Tourists_EstateList(estParam *PublicEstateListParamte
 				return data, "获取房源面积失败"
 			}
 			measureArea := string(row[0]["measure_area"])
-			where += ` AND (e.measure_area<"` + measureArea + `" OR (e.measure_area="` + measureArea + `" AND r.id<` + strconv.Itoa(estParam.LastId) + `))`
+			where += ` AND (e.measure_area<"` + measureArea + `" OR (e.measure_area="` + measureArea + `" AND e.id<` + strconv.Itoa(estParam.LastId) + `))`
 		}
 
 		order += ` ORDER BY e.measure_area DESC, e.id DESC`
@@ -165,7 +165,7 @@ func (this *TouristsModel) Tourists_EstateList(estParam *PublicEstateListParamte
 				return data, "获取房源面积失败"
 			}
 			price := string(row[0]["price"])
-			where += ` AND (e.price>"` + price + `" OR (e.price="` + price + `" AND r.id>` + strconv.Itoa(estParam.LastId) + `))`
+			where += ` AND (e.price>"` + price + `" OR (e.price="` + price + `" AND e.id>` + strconv.Itoa(estParam.LastId) + `))`
 		}
 
 		order += ` ORDER BY e.price, e.id`
@@ -178,7 +178,7 @@ func (this *TouristsModel) Tourists_EstateList(estParam *PublicEstateListParamte
 				return data, "获取房源面积失败"
 			}
 			price := string(row[0]["price"])
-			where += ` AND (e.price<"` + price + `" OR (e.price="` + price + `" AND r.id<` + strconv.Itoa(estParam.LastId) + `))`
+			where += ` AND (e.price<"` + price + `" OR (e.price="` + price + `" AND e.id<` + strconv.Itoa(estParam.LastId) + `))`
 		}
 
 		order += ` ORDER BY e.price DESC, e.id DESC`
