@@ -15,7 +15,7 @@ var baseModel = new(v1.BaseModel)
 func Base(parentRoute *gin.RouterGroup) {
 	router := parentRoute.Group("/base")
 	router.Use(middleware.Auth())
-	router.GET("/date_list", Base_DateList)                                           // 7.1 本部中介-日期列表
+	router.GET("/start_date", Base_StartDate)                                         // 7.1 本部中介-起始日期
 	router.GET("/sales_achievement", Base_SalesAchievement)                           // 7.2 本部中介-销售业绩
 	router.GET("/sales_profit/list", Base_SalesProfitList)                            // 7.3.1 本部中介-中介费用统计-列表
 	router.GET("/sales_profit/detail", Base_SalesProfitDetail)                        // 7.3.2 本部中介-中介费用统计-详情
@@ -48,8 +48,8 @@ func Base(parentRoute *gin.RouterGroup) {
 }
 
 // 本部中介-日期列表
-func Base_DateList(c *gin.Context) {
-	data, errMsg := baseModel.Base_DateList()
+func Base_StartDate(c *gin.Context) {
+	data, errMsg := baseModel.Base_StartDate()
 	if errMsg != "" {
 		c.JSON(400, gin.H{
 			"code": 1010,

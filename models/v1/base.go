@@ -10,36 +10,28 @@ import (
 
 type BaseModel struct{}
 
-type BaseDateListReturn struct {
-	AddTime []string `json:"add_time"`
+type BaseStartDateReturn struct {
+	AddTime string `json:"add_time"`
 }
 
 // 本部中介-日期列表
-func (this *BaseModel) Base_DateList() (data *BaseDateListReturn, errMsg string) {
-	data = new(BaseDateListReturn)
-
+func (this *BaseModel) Base_StartDate() (data *BaseStartDateReturn, errMsg string) {
 	// 日期列表
 	sql := `SELECT deal_time
 			FROM p_recommend
 			WHERE is_pay=1
-			ORDER BY deal_time DESC`
-	rows, err := db.Db.Query(sql)
+			ORDER BY deal_time ASC LIMIT 1`
+	row, err := db.Db.Query(sql)
 	if err != nil {
 		return data, "获取日期列表失败"
 	}
-	if len(rows) == 0 {
+	if len(row) == 0 {
 		return nil, ""
 	}
-	dealTimeMap := make(map[string]int)
-	for _, value := range rows {
-		t, _ := time.ParseInLocation("2006-01-02", string(value["deal_time"]), time.Local)
-		dealTime := t.Format("2006-01")
-		if _, ok := dealTimeMap[dealTime]; !ok {
-			dealTimeMap[dealTime] = 1
-			data.AddTime = append(data.AddTime, dealTime)
-		}
-	}
-	return
+	t, _ := time.ParseInLocation("2006-01-02", string(row[0]["deal_time"]), time.Local)
+	return &BaseStartDateReturn{
+		AddTime: t.Format("2006-01"),
+	}, ""
 }
 
 type BaseSalesAchievementReturn struct {
@@ -1636,7 +1628,7 @@ func (this *BaseModel) Base_NotifyDel(id int) (errMsg string) {
 // 本部中介-我的通知标记为已读
 func (this *BaseModel) Base_NotifyMarkedAsRead(id int) (errMsg string) {
 	sql := `UPDATE base_notice
-			SET status=1
+			SET status=2
 			WHERE id=?`
 	_, err := db.Db.Exec(sql, id)
 	if err != nil {
