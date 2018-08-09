@@ -37,7 +37,7 @@ func Base(parentRoute *gin.RouterGroup) {
 	router.GET("/customer_manage/list", Base_CustomerManageList)                      // 7.7.2 本部中介-客户管理-列表
 	router.GET("/customer_manage/detail", Base_CustomerManageDetail)                  // 7.7.3 本部中介-客户管理-详情
 	router.POST("/customer_manage/edit", Base_CustomerManageEdit)                     // 7.7.4 本部中介-客户管理-编辑
-	router.DELETE("/customer_manage/del", Base_CustomerManageDel)                     // 7.7.5 本部中介-客户管理-删除
+	router.DELETE("/customer_manage/del/:id", Base_CustomerManageDel)                 // 7.7.5 本部中介-客户管理-删除
 	router.GET("/protection_period/show", Base_ProtectionPeriodShow)                  // 7.8.1 本部中介-保护期-显示
 	router.POST("/protection_period/set", Base_ProtectionPeriodSet)                   // 7.8.2 本部中介-保护期-设置
 	router.GET("/agency_fee/show", Base_AgencyFeeShow)                                // 7.9.1 本部中介-中介费-显示
