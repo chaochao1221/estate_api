@@ -510,7 +510,7 @@ func (this *BaseModel) Base_WaitDistributionDistribution(id, userId, leaderUserI
 
 	// 更新推荐状态
 	sql = `UPDATE p_recommend
-		   SET is_distribution=1, is_butt=1
+		   SET is_distribution=1
 		   WHERE id=?`
 	_, err = transaction.Exec(sql, id)
 	if err != nil {
@@ -1257,6 +1257,7 @@ type BaseCustomerManageDetailReturn struct {
 	IsLoan     int    `json:"is_loan"`
 	EstateCode string `json:"estate_code"`
 	Price      string `json:"price"`
+	UserId     int    `json:"user_id"`
 }
 
 // 本部中介-客户管理详情
@@ -1288,15 +1289,76 @@ func (this *BaseModel) Base_CustomerManageDetail(id int) (data *BaseCustomerMana
 
 // 本部中介-客户管理编辑
 func (this *BaseModel) Base_CustomerManageEdit(cusParam *BaseCustomerManageDetailReturn) (errMsg string) {
+	// 判断传入的房源编码是否可用
+	sql := `SELECT e.id, u.company_id, c.group_id
+			FROM p_estate e
+			LEFT JOIN p_user u ON u.id=e.user_id
+			LEFT JOIN p_company c ON c.id=u.company_id
+			WHERE e.code=? AND e.is_del=0 AND e.status=1`
+	row, err := db.Db.Query(sql, cusParam.EstateCode)
+	if err != nil {
+		return "获取房源信息失败"
+	}
+	if len(row) == 0 {
+		return "The estate does not exist"
+	}
+	estateId, _ := strconv.Atoi(string(row[0]["id"]))
+	companyId, _ := strconv.Atoi(string(row[0]["company_id"]))
+	groupId, _ := strconv.Atoi(string(row[0]["group_id"]))
+
+	// 用户信息
+	userInfo, errMsg := userModel.GetUserInfo(&GetUserInfoParameter{UserId: cusParam.UserId})
+	if errMsg != "" {
+		return errMsg
+	}
+
+	// 判断该客户是否成交
+	var status int = 1
+	if cusParam.IsPay == 1 {
+		status = 3
+	}
+
+	// 开启事务
+	transaction := db.Db.NewSession()
+	if err = transaction.Begin(); err != nil {
+		return "开启事务失败"
+	}
+
 	// 更新客户信息
-	sql := `UPDATE p_recommend r
-			LEFT JOIN p_tourists t ON t.id=r.tourists_id
-			LEFT JOIN p_estate e ON e.id=r.estate_id
-			SET r.is_butt=?, r.is_to_japan=?, r.is_agree=?, r.is_pay=?, r.is_loan=?, t.name=?, t.sex=?, t.wechat=?, e.code=?, e.price=?
-			WHERE r.id=?`
-	_, err := db.Db.Exec(sql, cusParam.IsButt, cusParam.IsToJapan, cusParam.IsAgree, cusParam.IsPay, cusParam.IsLoan, cusParam.Name, cusParam.Sex, cusParam.Wechat, cusParam.EstateCode, cusParam.Price)
+	sql = `UPDATE p_recommend r
+		   LEFT JOIN p_tourists t ON t.id=r.tourists_id
+		   LEFT JOIN p_estate e ON e.id=r.estate_id
+		   SET r.estate_id=?, r.is_butt=?, r.is_to_japan=?, r.is_agree=?, r.is_pay=?, r.is_loan=?, r.deal_time=?, t.name=?, t.sex=?, t.wechat=?, e.price=?, e.status=?
+		   WHERE r.id=?`
+	_, err = transaction.Exec(sql, estateId, cusParam.IsButt, cusParam.IsToJapan, cusParam.IsAgree, cusParam.IsPay, cusParam.IsLoan, time.Now().Format("2006-01-02"), cusParam.Name, cusParam.Sex, cusParam.Wechat, cusParam.Price, status, cusParam.Id)
 	if err != nil {
 		return "更新客户信息失败"
+	}
+
+	// 更新总部公司成交客户数量
+	sql = `UPDATE p_company
+		   SET deal_number=deal_number+1
+		   WHERE id=?`
+	_, err = transaction.Exec(sql, userInfo.CompanyId)
+	if err != nil {
+		return "更新总部公司成交客户数量失败"
+	}
+
+	// 如果该房源为日本中介发布，则更新该公司成交房源数量
+	if groupId == 3 {
+		sql = `UPDATE p_company
+			   SET deal_number=deal_number+1
+			   WHERE id=?`
+		_, err = transaction.Exec(sql, companyId)
+		if err != nil {
+			return "更新公司成交房源数量失败"
+		}
+	}
+
+	// 提交事务
+	if err = transaction.Commit(); err != nil {
+		transaction.Rollback()
+		return "提交事务失败"
 	}
 	return
 }

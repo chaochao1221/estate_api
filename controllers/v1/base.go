@@ -939,6 +939,7 @@ func Base_CustomerManageEdit(c *gin.Context) {
 		IsLoan:     utils.Str2int(c.PostForm("is_loan")),
 		EstateCode: c.PostForm("estate_code"),
 		Price:      c.PostForm("price"),
+		UserId:     utils.Str2int(c.Request.Header.Get("user_id")),
 	})
 	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
 	if groupId == 0 {
