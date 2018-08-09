@@ -144,19 +144,13 @@ func (this *UserModel) User_Info(userId, groupId int) (u *UserInfoReturn, errMsg
 		return u, "该用户不存在"
 	}
 
-	// 获取本部基础信息
-	baseInfo, errMsg := this.GetBaseInfo()
-	if errMsg != "" {
-		return u, errMsg
-	}
-
 	return &UserInfoReturn{
 		GroupId:    groupId,
 		UserId:     userId,
 		UserType:   userInfo.UserType,
 		Name:       userInfo.Name,
 		Email:      userInfo.Email,
-		IsNotified: baseInfo.IsNotified,
+		IsNotified: userInfo.IsNotified,
 	}, ""
 }
 
@@ -166,15 +160,16 @@ type GetUserInfoParameter struct {
 }
 
 type GetUserInfoReturn struct {
-	CompanyId int
-	UserId    int
-	UserType  int
-	Email     string
-	Password  string
-	Name      string
-	Telephone string
-	Fax       string
-	AddTime   string
+	CompanyId  int
+	UserId     int
+	UserType   int
+	Email      string
+	Password   string
+	Name       string
+	Telephone  string
+	Fax        string
+	IsNotified int
+	AddTime    string
 }
 
 /*
@@ -194,7 +189,7 @@ func (this *UserModel) GetUserInfo(userInfo *GetUserInfoParameter) (u *GetUserIn
 	}
 
 	// 查询用户信息
-	sql := `SELECT id, company_id, user_type, email, password, name, telephone, fax, add_time
+	sql := `SELECT id, company_id, user_type, email, password, name, telephone, fax, is_notified, add_time
 			FROM p_user
 			WHERE ` + where
 	row, err := db.Db.Query(sql)
@@ -207,15 +202,16 @@ func (this *UserModel) GetUserInfo(userInfo *GetUserInfoParameter) (u *GetUserIn
 
 	// 返回数据
 	return &GetUserInfoReturn{
-		CompanyId: utils.Str2int(string(row[0]["company_id"])),
-		UserId:    utils.Str2int(string(row[0]["id"])),
-		UserType:  utils.Str2int(string(row[0]["user_type"])),
-		Email:     string(row[0]["email"]),
-		Password:  string(row[0]["password"]),
-		Name:      string(row[0]["name"]),
-		Telephone: string(row[0]["telephone"]),
-		Fax:       string(row[0]["fax"]),
-		AddTime:   string(row[0]["add_time"]),
+		CompanyId:  utils.Str2int(string(row[0]["company_id"])),
+		UserId:     utils.Str2int(string(row[0]["id"])),
+		UserType:   utils.Str2int(string(row[0]["user_type"])),
+		Email:      string(row[0]["email"]),
+		Password:   string(row[0]["password"]),
+		Name:       string(row[0]["name"]),
+		Telephone:  string(row[0]["telephone"]),
+		Fax:        string(row[0]["fax"]),
+		IsNotified: utils.Str2int(string(row[0]["is_notified"])),
+		AddTime:    string(row[0]["add_time"]),
 	}, ""
 }
 
@@ -274,7 +270,7 @@ type GetBaseInfoReturn struct {
 * @Return errMsg string
  */
 func (this *UserModel) GetBaseInfo() (data *GetBaseInfoReturn, errMsg string) {
-	sql := `SELECT service_fee, fixed_fee, excise_fee, protection_period, is_notified
+	sql := `SELECT service_fee, fixed_fee, excise_fee, protection_period
 			FROM base_info
 			WHERE id=1`
 	row, err := db.Db.Query(sql)
@@ -286,7 +282,6 @@ func (this *UserModel) GetBaseInfo() (data *GetBaseInfoReturn, errMsg string) {
 		FixedFee:         utils.Str2int(string(row[0]["fixed_fee"])),
 		ExciseFee:        string(row[0]["excise_fee"]),
 		ProtectionPeriod: utils.Str2int(string(row[0]["protection_period"])),
-		IsNotified:       utils.Str2int(string(row[0]["is_notified"])),
 	}, ""
 }
 

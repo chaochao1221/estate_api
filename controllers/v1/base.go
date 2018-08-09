@@ -42,7 +42,9 @@ func Base(parentRoute *gin.RouterGroup) {
 	router.POST("/protection_period/set", Base_ProtectionPeriodSet)                   // 7.8.2 本部中介-保护期-设置
 	router.GET("/agency_fee/show", Base_AgencyFeeShow)                                // 7.9.1 本部中介-中介费-显示
 	router.POST("/agency_fee/set", Base_AgencyFeeSet)                                 // 7.9.2 本部中介-中介费-设置
-	router.POST("/notify_set", Base_NotifySet)                                        // 7.10 本部中介-通知设置
+	router.POST("/notify/set", Base_NotifySet)                                        // 7.10.1 本部中介-我的通知-设置
+	router.GET("/notify/list", Base_NotifyList)                                       // 7.10.2 本部中介-我的通知-列表
+	router.DELETE("/notify/del/:id", Base_NotifyDel)                                  // 7.10.3 本部中介-我的通知-删除
 }
 
 // 本部中介-日期列表
@@ -1154,10 +1156,10 @@ func Base_AgencyFeeSet(c *gin.Context) {
 	return
 }
 
-// 本部中介-通知设置
+// 本部中介-我的通知设置
 func Base_NotifySet(c *gin.Context) {
+	userId, _ := strconv.Atoi(c.Request.Header.Get("user_id"))
 	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
-	userType, _ := strconv.Atoi(c.Request.Header.Get("user_type"))
 	if groupId == 0 {
 		c.JSON(400, gin.H{
 			"code": 1010,
@@ -1165,16 +1167,16 @@ func Base_NotifySet(c *gin.Context) {
 		})
 		return
 	}
-	if groupId != 1 && userType != 1 {
+	if groupId != 1 {
 		c.JSON(400, gin.H{
 			"code": 1010,
-			"msg":  "非本部主管不允通知设置",
+			"msg":  "非本部中介不允通知设置",
 		})
 		return
 	}
 
 	// 设置
-	data, errMsg := baseModel.Base_NotifySet()
+	data, errMsg := baseModel.Base_NotifySet(userId)
 	if errMsg != "" {
 		c.JSON(400, gin.H{
 			"code": 1010,
@@ -1186,6 +1188,124 @@ func Base_NotifySet(c *gin.Context) {
 		"code": 0,
 		"msg":  "success",
 		"data": data,
+	})
+	return
+}
+
+// 本部中介-我的通知列表
+func Base_NotifyList(c *gin.Context) {
+	status, _ := strconv.Atoi(c.Query("status"))
+	perPage, _ := strconv.Atoi(c.Query("per_page"))
+	lastId, _ := strconv.Atoi(c.Query("last_id"))
+	userId, _ := strconv.Atoi(c.Request.Header.Get("user_id"))
+	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
+	userType, _ := strconv.Atoi(c.Request.Header.Get("user_type"))
+	if userId == 0 || groupId == 0 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "参数错误",
+		})
+		return
+	}
+	if groupId != 1 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "非本部中介不允查看通知列表",
+		})
+		return
+	}
+
+	// 列表
+	data, errMsg := baseModel.Base_NotifyList(status, perPage, lastId, userId, userType)
+	if errMsg != "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  errMsg,
+		})
+		return
+	}
+	if data == nil {
+		c.JSON(200, gin.H{
+			"code": 0,
+			"msg":  "success",
+			"data": data,
+		})
+		return
+	}
+	c.JSON(200, gin.H{
+		"code": 0,
+		"msg":  "success",
+		"data": data,
+	})
+	return
+}
+
+// 本部中介-我的通知删除
+func Base_NotifyDel(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Params.ByName("id"))
+	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
+	if groupId == 0 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "参数错误",
+		})
+		return
+	}
+	if groupId != 1 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "非本部中介不允删除通知",
+		})
+		return
+	}
+
+	// 删除
+	errMsg := baseModel.Base_NotifyDel(id)
+	if errMsg != "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  errMsg,
+		})
+		return
+	}
+	c.JSON(200, gin.H{
+		"code": 0,
+		"msg":  "success",
+	})
+	return
+}
+
+// 本部中介-我的通知标记为已读
+func Base_NotifyMarkedAsRead(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Params.ByName("id"))
+	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
+	if groupId == 0 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "参数错误",
+		})
+		return
+	}
+	if groupId != 1 {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  "非本部中介不允标记为已读通知",
+		})
+		return
+	}
+
+	// 删除
+	errMsg := baseModel.Base_NotifyMarkedAsRead(id)
+	if errMsg != "" {
+		c.JSON(400, gin.H{
+			"code": 1010,
+			"msg":  errMsg,
+		})
+		return
+	}
+	c.JSON(201, gin.H{
+		"code": 0,
+		"msg":  "success",
 	})
 	return
 }

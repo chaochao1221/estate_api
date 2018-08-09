@@ -1460,25 +1460,25 @@ type BaseNotifySetReturn struct {
 	IsNotified int `json:"is_notified"`
 }
 
-// 本部中介-通知设置
-func (this *BaseModel) Base_NotifySet() (data *BaseNotifySetReturn, errMsg string) {
+// 本部中介-我的通知设置
+func (this *BaseModel) Base_NotifySet(userId int) (data *BaseNotifySetReturn, errMsg string) {
 	// 本部基础信息
-	baseInfo, errMsg := userModel.GetBaseInfo()
+	userInfo, errMsg := userModel.GetUserInfo(&GetUserInfoParameter{UserId: userId})
 	if errMsg != "" {
 		return data, errMsg
 	}
 
 	// 根据当前通知状态来获取需要更新的状态
 	var isNotified int
-	if baseInfo.IsNotified == 0 {
+	if userInfo.IsNotified == 0 {
 		isNotified = 1
 	}
 
 	// 更新通知状态
-	sql := `UPDATE base_info
+	sql := `UPDATE p_user
 			SET is_notified=?
-			WHERE id=1`
-	_, err := db.Db.Exec(sql, isNotified)
+			WHERE id=?`
+	_, err := db.Db.Exec(sql, isNotified, userId)
 	if err != nil {
 		return nil, "更新中介费失败"
 	}
@@ -1486,4 +1486,153 @@ func (this *BaseModel) Base_NotifySet() (data *BaseNotifySetReturn, errMsg strin
 	return &BaseNotifySetReturn{
 		IsNotified: isNotified,
 	}, ""
+}
+
+type BaseNotifyListReturn struct {
+	UnreadNumber int              `json:"unread_number"`
+	List         []BaseNotifyList `json:"list"`
+	Pagenation   Pagenation       `json:"pagenation"`
+}
+
+type BaseNotifyList struct {
+	Id          int    `json:"id"`
+	RecommendId int    `json:"recommend_id"`
+	Name        string `json:"name"`
+	AddTime     string `json:"add_time"`
+}
+
+// 本部中介-我的通知列表
+func (this *BaseModel) Base_NotifyList(status, perPage, lastId, userId, userType int) (data *BaseNotifyListReturn, errMsg string) {
+	data = new(BaseNotifyListReturn)
+	data.Pagenation.LastId = -1
+
+	// 条件
+	var where string
+
+	// 状态
+	if status > 0 {
+		where += ` AND n.status=` + strconv.Itoa(status)
+	}
+
+	// 分页
+	if perPage == 0 {
+		perPage = 10
+	}
+	if lastId > 0 {
+		// 获取当前分页的最后一条数据的时间
+		sql := `SELECT add_time FROM base_notice WHERE id=?`
+		row, err := db.Db.Query(sql, lastId)
+		if err != nil {
+			return data, "获取推荐时间失败"
+		}
+		addTime := string(row[0]["add_time"])
+		where += ` AND (n.add_time<"` + addTime + `" OR (n.add_time="` + addTime + `" AND n.id<` + strconv.Itoa(lastId) + `))`
+	}
+
+	// 主管看推荐通知，销售看分配通知
+	if userType == 1 { // 主管
+		sql := `SELECT n.id, n.recommend_id, n.type, n.status, n.add_time
+				FROM base_notice n
+				WHERE n.type IN(1,2) ` + where + ` ORDER BY n.add_time DESC, n.id LIMIT 0,?`
+		rows, err := db.Db.Query(sql, perPage+1)
+		if err != nil {
+			return data, "获取通知列表失败"
+		}
+		if len(rows) == 0 {
+			return nil, ""
+		}
+		for key, value := range rows {
+			if key < perPage {
+				var name string
+				switch utils.Str2int(string(value["type"])) {
+				case 1: // 推荐
+					name = "收到新的推荐客户"
+				case 2: // 咨询
+					name = "收到新的咨询客户"
+				default:
+					return data, "类型错误"
+				}
+				data.List = append(data.List, BaseNotifyList{
+					Id:          utils.Str2int(string(value["id"])),
+					RecommendId: utils.Str2int(string(value["recommend_id"])),
+					Name:        name,
+					AddTime:     string(value["add_time"]),
+				})
+
+				lastId = utils.Str2int(string(value["id"]))
+			} else {
+				data.Pagenation.LastId = lastId
+			}
+		}
+
+		// 未读数量
+		sql = `SELECT COUNT(id) count
+			   FROM base_notice
+			   WHERE n.type IN(1,2) AND status=1`
+		row, err := db.Db.Query(sql)
+		if err != nil {
+			return data, "获取未读数量失败"
+		}
+		data.UnreadNumber = utils.Str2int(string(row[0]["count"]))
+	} else { // 销售
+		// 列表
+		sql := `SELECT n.id, n.recommend_id, n.status, n.add_time
+				FROM base_notice n
+				WHERE n.type=3 AND user_id=? ` + where + ` ORDER BY n.add_time DESC, n.id LIMIT 0,?`
+		rows, err := db.Db.Query(sql, userId, perPage+1)
+		if err != nil {
+			return data, "获取通知列表失败"
+		}
+		if len(rows) == 0 {
+			return nil, ""
+		}
+		for key, value := range rows {
+			if key < perPage {
+				data.List = append(data.List, BaseNotifyList{
+					Id:          utils.Str2int(string(value["id"])),
+					RecommendId: utils.Str2int(string(value["recommend_id"])),
+					Name:        "收到新的分配客户",
+					AddTime:     string(value["add_time"]),
+				})
+
+				lastId = utils.Str2int(string(value["id"]))
+			} else {
+				data.Pagenation.LastId = lastId
+			}
+		}
+
+		// 未读数量
+		sql = `SELECT COUNT(id) count
+			   FROM base_notice
+			   WHERE n.type=3 AND user_id=? AND status=1`
+		row, err := db.Db.Query(sql, userId)
+		if err != nil {
+			return data, "获取未读数量失败"
+		}
+		data.UnreadNumber = utils.Str2int(string(row[0]["count"]))
+	}
+
+	return
+}
+
+// 本部中介-我的通知删除
+func (this *BaseModel) Base_NotifyDel(id int) (errMsg string) {
+	sql := `DELETE FROM base_notice WHERE id=?`
+	_, err := db.Db.Exec(sql, id)
+	if err != nil {
+		return "删除失败"
+	}
+	return
+}
+
+// 本部中介-我的通知标记为已读
+func (this *BaseModel) Base_NotifyMarkedAsRead(id int) (errMsg string) {
+	sql := `UPDATE base_notice
+			SET status=1
+			WHERE id=?`
+	_, err := db.Db.Exec(sql, id)
+	if err != nil {
+		return "标记为已读失败"
+	}
+	return
 }
