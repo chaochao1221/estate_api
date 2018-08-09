@@ -279,6 +279,7 @@ func Base_SalesProfitSettingModify(c *gin.Context) {
 
 // 本部中介-待分配客户列表
 func Base_WaitDistributionList(c *gin.Context) {
+	noticeId, _ := strconv.Atoi(c.Query("notice_id"))
 	perPage, _ := strconv.Atoi(c.Query("per_page"))
 	lastId, _ := strconv.Atoi(c.Query("last_id"))
 	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
@@ -307,6 +308,10 @@ func Base_WaitDistributionList(c *gin.Context) {
 		})
 		return
 	}
+
+	// 标记该条消息通知为已读
+	baseModel.Base_NotifyMarkedAsRead(noticeId)
+
 	if data == nil {
 		c.JSON(200, gin.H{
 			"code": 0,
@@ -850,6 +855,7 @@ func Base_CustomerManageList(c *gin.Context) {
 		PerPage:   utils.Str2int(c.Query("per_page")),
 		LastId:    utils.Str2int(c.Query("last_id")),
 	})
+	noticeId, _ := strconv.Atoi(c.Query("notice_id"))
 	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
 	if groupId == 0 {
 		c.JSON(400, gin.H{
@@ -875,6 +881,10 @@ func Base_CustomerManageList(c *gin.Context) {
 		})
 		return
 	}
+
+	// 标记该条消息通知为已读
+	baseModel.Base_NotifyMarkedAsRead(noticeId)
+
 	if data == nil {
 		c.JSON(200, gin.H{
 			"code": 0,

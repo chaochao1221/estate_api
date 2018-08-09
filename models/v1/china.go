@@ -42,14 +42,23 @@ func (this *ChinaModel) China_Recommend(estateId, sex, userId, groupId int, name
 		transaction.Rollback()
 		return "更新游客失败"
 	}
-	lastId, err := row.LastInsertId()
+	lastId, _ := row.LastInsertId()
 
 	// 更新推荐关系
 	sql = `INSERT INTO p_recommend(estate_id, user_id, tourists_id) VALUES(?,?,?)`
-	_, err = transaction.Exec(sql, estateId, userId, int(lastId))
+	row, err = transaction.Exec(sql, estateId, userId, int(lastId))
 	if err != nil {
 		transaction.Rollback()
 		return "更新推荐关系失败"
+	}
+	lastId, _ = row.LastInsertId()
+
+	// 更新消息中心
+	sql = `INSERT INTO base_notice(recommend_id, type) VALUES(?,?)`
+	_, err = transaction.Exec(sql, int(lastId), 1)
+	if err != nil {
+		transaction.Rollback()
+		return "更新消息中心失败"
 	}
 
 	// 更新公司推荐数量

@@ -518,6 +518,14 @@ func (this *BaseModel) Base_WaitDistributionDistribution(id, userId, leaderUserI
 		return "更新推荐状态失败"
 	}
 
+	// 更新消息中心
+	sql = `INSERT INTO base_notice(user_id, recommend_id, type) VALUES(?,?,?)`
+	_, err = transaction.Exec(sql, userId, id, 3)
+	if err != nil {
+		transaction.Rollback()
+		return "更新消息中心失败"
+	}
+
 	// 更新公司对接客户数量
 	sql = `UPDATE p_company
 		   SET butt_number=butt_number+1
@@ -1495,10 +1503,10 @@ type BaseNotifyListReturn struct {
 }
 
 type BaseNotifyList struct {
-	Id          int    `json:"id"`
-	RecommendId int    `json:"recommend_id"`
-	Name        string `json:"name"`
-	AddTime     string `json:"add_time"`
+	Id int `json:"id"`
+	// RecommendId int    `json:"recommend_id"`
+	Name    string `json:"name"`
+	AddTime string `json:"add_time"`
 }
 
 // 本部中介-我的通知列表
@@ -1553,10 +1561,10 @@ func (this *BaseModel) Base_NotifyList(status, perPage, lastId, userId, userType
 					return data, "类型错误"
 				}
 				data.List = append(data.List, BaseNotifyList{
-					Id:          utils.Str2int(string(value["id"])),
-					RecommendId: utils.Str2int(string(value["recommend_id"])),
-					Name:        name,
-					AddTime:     string(value["add_time"]),
+					Id: utils.Str2int(string(value["id"])),
+					// RecommendId: utils.Str2int(string(value["recommend_id"])),
+					Name:    name,
+					AddTime: string(value["add_time"]),
 				})
 
 				lastId = utils.Str2int(string(value["id"]))
@@ -1589,10 +1597,10 @@ func (this *BaseModel) Base_NotifyList(status, perPage, lastId, userId, userType
 		for key, value := range rows {
 			if key < perPage {
 				data.List = append(data.List, BaseNotifyList{
-					Id:          utils.Str2int(string(value["id"])),
-					RecommendId: utils.Str2int(string(value["recommend_id"])),
-					Name:        "收到新的分配客户",
-					AddTime:     string(value["add_time"]),
+					Id: utils.Str2int(string(value["id"])),
+					// RecommendId: utils.Str2int(string(value["recommend_id"])),
+					Name:    "收到新的分配客户",
+					AddTime: string(value["add_time"]),
 				})
 
 				lastId = utils.Str2int(string(value["id"]))

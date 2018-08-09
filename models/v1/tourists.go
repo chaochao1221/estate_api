@@ -263,10 +263,19 @@ func (this *TouristsModel) Tourists_EstateConsulting(estateId, sex int, name, we
 
 	// 更新推荐/咨询表
 	sql = `INSERT INTO p_recommend(tourists_id, estate_id) VALUES(?,?)`
-	_, err = transaction.Exec(sql, lastId, estateId)
+	row, err = transaction.Exec(sql, lastId, estateId)
 	if err != nil {
 		transaction.Rollback()
 		return "更新咨询表失败"
+	}
+	lastId, _ = row.LastInsertId()
+
+	// 更新消息中心
+	sql = `INSERT INTO base_notice(recommend_id, type) VALUES(?,?)`
+	_, err = transaction.Exec(sql, int(lastId), 2)
+	if err != nil {
+		transaction.Rollback()
+		return "更新消息中心失败"
 	}
 
 	// 提交事务
