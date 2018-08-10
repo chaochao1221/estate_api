@@ -1566,9 +1566,9 @@ func (this *BaseModel) Base_NotifyList(status, perPage, lastId, userId, userType
 		}
 
 		// 未读数量
-		sql = `SELECT COUNT(id) count
-			   FROM base_notice
-			   WHERE n.type IN(1,2) AND status=1`
+		sql = `SELECT COUNT(n.id) count
+			   FROM base_notice n
+			   WHERE n.type IN(1,2) AND n.status=1`
 		row, err := db.Db.Query(sql)
 		if err != nil {
 			return data, "获取未读数量失败"
@@ -1602,9 +1602,9 @@ func (this *BaseModel) Base_NotifyList(status, perPage, lastId, userId, userType
 		}
 
 		// 未读数量
-		sql = `SELECT COUNT(id) count
-			   FROM base_notice
-			   WHERE n.type=3 AND user_id=? AND status=1`
+		sql = `SELECT COUNT(n.id) count
+			   FROM base_notice n
+			   WHERE n.type=3 AND n.user_id=? AND n.status=1`
 		row, err := db.Db.Query(sql, userId)
 		if err != nil {
 			return data, "获取未读数量失败"

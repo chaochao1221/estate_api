@@ -45,6 +45,7 @@ func Base(parentRoute *gin.RouterGroup) {
 	router.POST("/notify/set", Base_NotifySet)                                        // 7.10.1 本部中介-我的通知-设置
 	router.GET("/notify/list", Base_NotifyList)                                       // 7.10.2 本部中介-我的通知-列表
 	router.DELETE("/notify/del/:id", Base_NotifyDel)                                  // 7.10.3 本部中介-我的通知-删除
+	router.POST("/notify/marked_as_read", Base_NotifyMarkedAsRead)                    // 7.10.4 本部中介-我的通知-标记为已读
 }
 
 // 本部中介-日期列表
@@ -1287,7 +1288,7 @@ func Base_NotifyDel(c *gin.Context) {
 
 // 本部中介-我的通知标记为已读
 func Base_NotifyMarkedAsRead(c *gin.Context) {
-	id, _ := strconv.Atoi(c.Params.ByName("id"))
+	id, _ := strconv.Atoi(c.PostForm("id"))
 	groupId, _ := strconv.Atoi(c.Request.Header.Get("group_id"))
 	if groupId == 0 {
 		c.JSON(400, gin.H{
