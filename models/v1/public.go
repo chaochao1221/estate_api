@@ -863,6 +863,7 @@ type PublicEstateDetailReturn struct {
 	EstateCode        string `json:"estate_code"`
 	Price             string `json:"price"`
 	PriceRmb          string `json:"price_rmb"`
+	Points            int    `json:"points"`
 	Huxing            string `json:"huxing"`
 	HuxingAlias       string `json:"huxing_alias"`
 	MeasureArea       string `json:"measure_area"`
@@ -878,13 +879,18 @@ type PublicEstateDetailReturn struct {
 	Rent              int    `json:"rent"`
 	ReturnRate        string `json:"return_rate"`
 	ManageFee         int    `json:"manage_fee"`
+	RegionId          int    `json:"region_id"`
 	RegionName        string `json:"region_name"`
+	Address           string `json:"address"`
+	Traffic           string `json:"traffic"`
+	Picture           string `json:"picture"`
 }
 
 // 公用-房源详情
 func (this *PublicModel) Public_EstateDetail(estateId int) (data *PublicEstateDetailReturn, errMsg string) {
-	sql := `SELECT e.id, e.code, e.measure_area, e.price, e.huxing, e.housing_type, e.land_rights, e.building_time, e.floor, e.total_floor,
-			e.building_structure, e.orientation, e.repair_fee, e.state, e.rent, e.return_rate, e.manage_fee, r.p_id regionPId, r.name regionName, r.type region_type
+	sql := `SELECT e.id, e.code, e.measure_area, e.price, e.points, e.huxing, e.housing_type, e.land_rights, e.building_time, e.floor, e.total_floor,
+			e.building_structure, e.orientation, e.repair_fee, e.state, e.rent, e.return_rate, e.manage_fee, e.region_id, e.traffic, e.address, e.picture, 
+			r.p_id regionPId, r.name regionName, r.type region_type
 			FROM p_estate e
 			LEFT JOIN p_region r ON r.id=e.region_id
 			WHERE e.id=? AND e.status=1 AND e.is_del=0`
@@ -918,6 +924,7 @@ func (this *PublicModel) Public_EstateDetail(estateId int) (data *PublicEstateDe
 		EstateCode:        string(row[0]["code"]),
 		Price:             string(row[0]["price"]),
 		PriceRmb:          "",
+		Points:            utils.Str2int(string(row[0]["points"])),
 		Huxing:            string(row[0]["huxing"]),
 		HuxingAlias:       GetHuxingAlias(string(row[0]["huxing"])),
 		MeasureArea:       string(row[0]["measure_area"]),
@@ -933,7 +940,11 @@ func (this *PublicModel) Public_EstateDetail(estateId int) (data *PublicEstateDe
 		Rent:              utils.Str2int(string(row[0]["rent"])),
 		ReturnRate:        string(row[0]["return_rate"]),
 		ManageFee:         utils.Str2int(string(row[0]["manage_fee"])),
+		RegionId:          utils.Str2int(string(row[0]["region_id"])),
 		RegionName:        regionName + `-` + areaName,
+		Address:           string(row[0]["address"]),
+		Traffic:           string(row[0]["traffic"]),
+		Picture:           string(row[0]["picture"]),
 	}, ""
 }
 
