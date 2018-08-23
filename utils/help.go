@@ -14,6 +14,8 @@ import (
 	"math/rand"
 	"mime/multipart"
 	"net/http"
+	"net/smtp"
+	temp_url "net/url"
 	"os"
 	"regexp"
 	"strconv"
@@ -143,6 +145,76 @@ func Krand(size int, kind int) []byte {
 		result[i] = uint8(base + rand.Intn(scope))
 	}
 	return result
+}
+
+// 发送邮件
+func SendEmail(email, messageUrl, body string, types int) (errMsg string) {
+	// 验证接收方邮箱格式
+	regular := `(?i)^[-a-z0-9~!$%^&*_=+}{\'?]+(\.[-a-z0-9~!$%^&*_=+}{\'?]+)*@([a-z0-9_][-a-z0-9_]*(\.[-a-z0-9_]+)*\.(aero|arpa|biz|com|coop|edu|gov|info|int|mil|museum|name|net|org|pro|travel|mobi|[a-z][a-z])|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}))(:[0-9]{1,5})?$`
+	if isOk, _ := regexp.MatchString(regular, email); !isOk {
+		return "邮箱格式不对"
+	}
+
+	// 发送信息不能为空
+	if messageUrl == "" {
+		return "生成验证码失败"
+	}
+
+	// 发送消息编码
+	messageUrl = temp_url.QueryEscape(messageUrl)
+
+	// 读取发送方邮箱配置
+	emailInfo, err := LoadConfig("email")
+	if err != nil {
+		return "发送邮箱未配置"
+	}
+	user := string(emailInfo["user"])
+	password := string(emailInfo["password"])
+	host := string(emailInfo["host"])
+	to := email
+	subject := "日本行房产管理平台"
+
+	// 根据不同类型发送相应信息
+	switch types {
+	case 1: // 激活链接
+		// domainInfo, err := setting.LoadConfig("domain")
+		// if err != nil {
+		// 	return "获取cloud_domain失败"
+		// }
+		// messageUrl = `您可以点击以下链接重置您的密码：</h3></p>
+		// <br/><a href="http://` + domainInfo["domain"] + `/check_vcode_email?s=` + messageUrl + `">http://` + domainInfo["domain"] + `/check_vcode_email?s=` + messageUrl + `<a/>`
+	case 2: // 重置密码
+		messageUrl = `您的新密码为：</h3></p>
+	<br/>` + messageUrl
+	default: //位置类型
+		return "发送邮箱类型错误"
+	}
+
+	// 发送
+	if body == "" {
+		body = `<html>
+					<body>
+						<h2>尊敬的用户，您好:</h2>
+						<p><h3>您在日本行房产管理平台进行密码重置操作，故系统自动为您发送了这封邮件。{message_url}<br/>
+						<h3>新密码有效期为二十四个小时，请在二十四个小时内用该新密码进行登录，登录以后旧密码自动失效。在新密码未登录之前，旧密码仍可以使用。如果您不需要重置密码，请忽略本邮件。</h3>
+					</body>
+				</html>`
+	}
+	body = strings.Replace(body, "{messageUrl}", messageUrl, -1)
+	hp := strings.Split(host, ":")
+	fmt.Println("hp", hp)
+	auth := smtp.PlainAuth("", user, password, hp[0])
+	fmt.Println("auth", auth)
+	content_type := "Content-Type: text/html; charset=UTF-8"
+	msg := []byte("To: " + to + "\r\nFrom: " + user + "<" + user + ">\r\nSubject: " + subject + "\r\n" + content_type + "\r\n\r\n" + body)
+	send_to := strings.Split(to, ";")
+	err = smtp.SendMail(host, auth, user, send_to, msg)
+	if err != nil {
+		fmt.Println("send mail error!", err)
+		return err.Error()
+	}
+	fmt.Println("send mail success!")
+	return
 }
 
 // 阿里大于发送短信

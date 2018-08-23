@@ -334,6 +334,9 @@ func (this *UserModel) User_ResetPassword(email string) (errMsg string) {
 
 	// 向邮箱发送重置后的密码
 	fmt.Println(newPassword)
+	if errMsg = utils.SendEmail(email, newPassword, "", 2); errMsg != "" {
+		return errMsg
+	}
 
 	return
 }

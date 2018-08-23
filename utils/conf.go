@@ -71,6 +71,10 @@ func LoadConfig(section string) (map[string]string, error) {
 		info["app_key"], err = Cfg.GetValue(section, "app_key")
 		info["app_secret"], err = Cfg.GetValue(section, "app_secret")
 		info["sms"], err = Cfg.GetValue(section, "sms")
+	} else if section == "email" { // 邮箱发送接口
+		info["user"], err = Cfg.GetValue(section, "user")
+		info["password"], err = Cfg.GetValue(section, "password")
+		info["host"], err = Cfg.GetValue(section, "host")
 	} else {
 		return info, errors.New("无法获取键值")
 	}
